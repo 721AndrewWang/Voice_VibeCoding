@@ -47,12 +47,24 @@ pub fn reveal_webview(window: &WebviewWindow) {
 /// 最小化到托盘：show + minimize + 不占任务栏。
 /// **禁止 hide()**：长期 hide 会让 Windows 回收 WebView2，导致白屏/黑屏。
 pub fn minimize_main_to_tray(window: &WebviewWindow) {
-    reveal_webview(window);
-    let _ = window.show();
-    let _ = window.minimize();
-    let _ = window.set_skip_taskbar(true);
-    SESSION_IN_TRAY.store(true, Ordering::SeqCst);
-    log::info!("WINDOW: minimized to tray (skip_taskbar, no hide)");
+    // Linux（WebKitGTK）没有 WebView2 回收问题：直接 hide 最干净，
+    // show+minimize 在 GNOME 上会闪一下窗口
+    #[cfg(target_os = "linux")]
+    {
+        let _ = window.hide();
+        SESSION_IN_TRAY.store(true, Ordering::SeqCst);
+        log::info!("WINDOW: hidden to tray");
+        return;
+    }
+    #[allow(unreachable_code)]
+    {
+        reveal_webview(window);
+        let _ = window.show();
+        let _ = window.minimize();
+        let _ = window.set_skip_taskbar(true);
+        SESSION_IN_TRAY.store(true, Ordering::SeqCst);
+        log::info!("WINDOW: minimized to tray (skip_taskbar, no hide)");
+    }
 }
 
 /// 若主窗口已存在则立即进托盘，返回是否成功。

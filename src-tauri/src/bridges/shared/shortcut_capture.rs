@@ -902,6 +902,8 @@ impl ShortcutCaptureSession {
         self.runtime.stop.store(true, Ordering::SeqCst);
         self.runtime.capturing.store(false, Ordering::SeqCst);
         consumer_listen::stop();
+        #[cfg(target_os = "linux")]
+        crate::linux::shortcut_x11::stop();
 
         if SWALLOW_ACTIVE.load(Ordering::SeqCst) {
             wait_swallow_inactive(Duration::from_millis(2500));
@@ -945,6 +947,16 @@ impl ShortcutCaptureSession {
         SWALLOW_HIT_LOGGED.store(false, Ordering::SeqCst);
         set_swallow_active(true);
         consumer_listen::start();
+
+        // Linux：X11 独占键盘代替 Windows 低级钩子（吞键 + 识别）
+        #[cfg(target_os = "linux")]
+        if let Err(e) = crate::linux::shortcut_x11::start() {
+            self.runtime.capturing.store(false, Ordering::SeqCst);
+            set_swallow_active(false);
+            reset_hook_session();
+            return Err(e);
+        }
+
         log::info!("Shortcut capture started (special_keys + consumer HID)");
         Ok(())
     }

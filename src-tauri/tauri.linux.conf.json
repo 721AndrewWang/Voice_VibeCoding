@@ -1,0 +1,27 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "mainBinaryName": "voice-vibecoding",
+  "bundle": {
+    "resources": [],
+    "targets": ["deb"],
+    "shortDescription": "小米蓝牙遥控器 2 Pro：按键映射 + 本地语音识别上屏",
+    "longDescription": "把小米蓝牙遥控器 2 Pro 变成编程遥控器：按键映射成任意快捷键，按住语音键说话，松手后在本机离线识别（Qwen3-ASR / SenseVoice）并把文字粘贴到当前输入框，中英混说也能认。\n蓝牙走 BlueZ，按键经 evdev 独占、uinput 注入；自带 udev 规则与 hwdb。",
+    "category": "Utility",
+    "linux": {
+      "deb": {
+        "depends": ["bluez", "libdbus-1-3"],
+        "recommends": ["pulseaudio-utils", "xdg-utils"],
+        "section": "utils",
+        "desktopTemplate": "../linux/voice-vibecoding.desktop.hbs",
+        "files": {
+          "/usr/lib/udev/rules.d/72-voice-vibecoding.rules": "../linux/72-voice-vibecoding.rules",
+          "/usr/lib/udev/hwdb.d/72-voice-vibecoding.hwdb": "../linux/72-voice-vibecoding.hwdb",
+          "/usr/share/voice-vibecoding/bt-dualboot.py": "../linux/bt-dualboot.py",
+          "/usr/share/doc/voice-vibe-coding/LINUX.md": "../docs/LINUX.md"
+        },
+        "postInstallScript": "../linux/deb-postinst.sh",
+        "postRemoveScript": "../linux/deb-postrm.sh"
+      }
+    }
+  }
+}

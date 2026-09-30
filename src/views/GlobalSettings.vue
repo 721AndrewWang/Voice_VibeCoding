@@ -6,6 +6,7 @@ import { open as openUrl } from "@tauri-apps/plugin-shell";
 import { useAppUpdateStore } from "../stores/appUpdate";
 import { useGlobalSettingsStore } from "../stores/globalSettings";
 import sanodiaLogo from "../assets/mwlt_sanodia_logo.png";
+import { isLinux } from "../stores/platform";
 
 const appUpdate = useAppUpdateStore();
 const globalSettings = useGlobalSettingsStore();
@@ -108,7 +109,7 @@ async function checkUpdate() {
           <div class="setting-info">
             <span class="setting-label">开机自启</span>
             <span class="setting-desc"
-              >Windows 登录时自动运行（与下方「启动后最小化到托盘」独立；是否进托盘由该选项决定）</span
+              >{{ isLinux ? "登录桌面时自动运行（~/.config/autostart）" : "Windows 登录时自动运行" }}（与下方「启动后最小化到托盘」独立；是否进托盘由该选项决定）</span
             >
           </div>
           <label class="toggle">
@@ -187,7 +188,7 @@ async function checkUpdate() {
             <div class="credit-row">
               <div class="credit-col">
                 <p class="credit-lead">
-                  本软件 : Rust+tauri2+vue3 Windows版（基于 Python 版本重构）
+                  本软件 : Rust+tauri2+vue3 {{ isLinux ? "Windows / Linux 版" : "Windows版" }}（基于 Python 版本重构）
                 </p>
                 <p class="credit-author">作者：mwlt</p>
                 <div class="credit-block">

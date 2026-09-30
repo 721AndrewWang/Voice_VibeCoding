@@ -147,6 +147,13 @@ fn write_verified_text(path: &Path, content: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// HID Tap（Frida Gadget）只存在于 Windows；其它平台无需收紧 ACL
+#[cfg(not(target_os = "windows"))]
+fn lock_runtime_acl(_path: &Path) -> Result<(), String> {
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
 fn lock_runtime_acl(path: &Path) -> Result<(), String> {
     fn apply(target: &Path, directory: bool) -> Result<(), String> {
         let suffix = if directory { "(OI)(CI)" } else { "" };
@@ -185,6 +192,7 @@ fn lock_runtime_acl(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(target_os = "windows")]
 fn walkdir_shallow(root: &Path) -> Result<Vec<PathBuf>, String> {
     let mut out = Vec::new();
     fn walk(dir: &Path, out: &mut Vec<PathBuf>) -> Result<(), String> {

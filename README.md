@@ -108,6 +108,21 @@ apple macos版 ，作者 [nijez](https://github.com/nijez)
 
 ---
 
+## Linux 版
+
+在 Ubuntu 24.04（GNOME / X11）上从源码打包成 .deb 安装，界面与按键映射配置与 Windows 版相同；
+语音默认走**本地离线识别直接上屏**（Qwen3-ASR，中英混说；Linux 没有微信/豆包输入法的语音听写），也可切换为 PipeWire 虚拟麦克风。
+
+```bash
+sudo bash linux/setup-system.sh   # 一次性：编译依赖
+bash linux/package-deb.sh         # 构建 + 打包 → dist-linux/voice-vibe-coding_<版本>_amd64.deb
+bash linux/install-deb.sh         # 安装 / 升级（会要 sudo 密码）
+```
+
+详见 [docs/LINUX.md](docs/LINUX.md)。
+
+---
+
 ## 架构（怎么串起来的）
 
 用一句话理解：

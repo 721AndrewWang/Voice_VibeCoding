@@ -10,6 +10,8 @@ import DeviceStatus from "../components/DeviceStatus.vue";
 import BatteryLevelIcon from "../components/BatteryLevelIcon.vue";
 import CableVolRuler from "../components/CableVolRuler.vue";
 import KeyMappingStage from "../components/KeyMappingStage.vue";
+import LinuxVoicePanel from "../components/LinuxVoicePanel.vue";
+import { isLinux } from "../stores/platform";
 import { cableZoneForLevel } from "../utils/cableVolMeter";
 import wechatImeHotkeysImg from "../assets/guides/wechat-ime-hotkeysV3.png";
 import doubaoImeHotkeysImg from "../assets/guides/doubao.png";
@@ -186,6 +188,10 @@ const waveLinePoints = computed(() => {
 });
 
 const cableReady = computed(() => host.value.cable_ready);
+/** Linux 本地识别模式：状态栏第一列是「语音识别」，虚拟麦克风不参与 */
+const linuxAsrMode = computed(
+  () => isLinux.value && host.value.items.some((i) => i.id === "cable" && i.label === "语音识别")
+);
 
 const cableVolZone = computed(() => {
   if (!cableReady.value) return "idle";
@@ -1710,8 +1716,9 @@ async function retryLoadConfig() {
             title="经增益处理后送往虚拟声卡的实时电平（dBFS，0 为数字满幅）"
           >
             <div class="audio-label-row cable-vol-label-row">
-              <span v-if="cableReady" class="info-label">虚拟声卡音量</span>
-              <span v-else class="cable-vol-fail">虚拟声卡未就绪</span>
+              <span v-if="cableReady" class="info-label">{{ isLinux ? "虚拟麦克风音量" : "虚拟声卡音量" }}</span>
+              <span v-else-if="linuxAsrMode" class="info-label">虚拟麦克风（本地识别模式不使用）</span>
+              <span v-else class="cable-vol-fail">{{ isLinux ? "虚拟麦克风未就绪" : "虚拟声卡未就绪" }}</span>
               <span
                 class="cable-vol-state"
                 :class="{
@@ -1755,6 +1762,7 @@ async function retryLoadConfig() {
           </div>
           <p v-if="host.detail" class="host-detail">{{ host.detail }}</p>
           <div class="host-actions">
+            <template v-if="!isLinux">
             <div class="host-action-group">
               <button
                 class="btn btn-secondary"
@@ -1871,6 +1879,7 @@ async function retryLoadConfig() {
                 </div>
               </Teleport>
             </div>
+            </template>
             <div class="host-action-group">
               <button
                 class="btn btn-secondary"
@@ -1911,7 +1920,8 @@ async function retryLoadConfig() {
                     <div class="tip-badge">会做什么</div>
                     <ul>
                       <li>检查是否有其它遥控桥接软件占用</li>
-                      <li>暂停 HID Tap 后软重启连接，并重新订阅语音通道</li>
+                      <li v-if="!isLinux">暂停 HID Tap 后软重启连接，并重新订阅语音通道</li>
+                      <li v-else>软重启与遥控器的蓝牙连接，并重新订阅语音通道</li>
                       <li>有占用时会先弹窗让你结束相关进程，再继续修复</li>
                     </ul>
                   </div>
@@ -1920,7 +1930,7 @@ async function retryLoadConfig() {
                     <ul>
                       <li>「音频信号」旁出现红字「ATVV 未连接」</li>
                       <li>按住语音键说话，绿色波形一直不动</li>
-                      <li>按语音键后记事本等处插入了日期时间</li>
+                      <li v-if="!isLinux">按语音键后记事本等处插入了日期时间</li>
                     </ul>
                   </div>
                   <p class="tip-foot">
@@ -1987,7 +1997,7 @@ async function retryLoadConfig() {
                 </div>
               </Teleport>
             </div>
-            <div class="host-action-group">
+            <div v-if="!isLinux" class="host-action-group">
               <button
                 class="btn btn-secondary"
                 type="button"
@@ -2157,7 +2167,7 @@ async function retryLoadConfig() {
               {{ logCopyHint || "复制" }}
             </button>
             <button class="btn btn-secondary" type="button" @click="openLogExternally">
-              用记事本打开
+              {{ isLinux ? "用文本编辑器打开" : "用记事本打开" }}
             </button>
             <button class="btn btn-secondary" type="button" @click="showLogModal = false">
               关闭
@@ -2497,6 +2507,8 @@ async function retryLoadConfig() {
           </p>
         </div>
       </div>
+
+      <LinuxVoicePanel v-if="isLinux" />
 
       <section v-if="configSectionLoading" class="card mapping-layout mapping-placeholder">
         <h3>按键映射</h3>

@@ -434,6 +434,36 @@ fn step_atvv_once(app: &tauri::AppHandle) -> Result<(), String> {
     }
 }
 
+/// Linux：遥控器已连上但 ATVV 没订阅时，自动修一次（= 重启桥接再等订阅）
+#[cfg(target_os = "linux")]
+fn step_atvv_once_linux(app: &tauri::AppHandle) -> Result<(), String> {
+    use tauri::Manager;
+    let connected = xiaomi_ble_connected(app);
+    let atvv_ok = crate::bridges::xiaomi::connect::atvv_subscribed();
+    if !connected || atvv_ok || atvv_auto_repair_attempted() {
+        log::info!(
+            "startup-env atvv skip (linux) connected={connected} atvv_ok={atvv_ok} attempted={}",
+            atvv_auto_repair_attempted()
+        );
+        return Ok(());
+    }
+    mark_atvv_auto_repair_attempted();
+    mark_bridge_reset_attempted();
+    let Some(state) = app.try_state::<crate::bridges::BridgeState>() else {
+        return Err("BridgeState 不可用".into());
+    };
+    let Some(config) = app.try_state::<crate::config::manager::ConfigManager>() else {
+        return Err("ConfigManager 不可用".into());
+    };
+    let (ok, msg) =
+        crate::ipc::commands::run_atvv_repair_pipeline(app, state.inner(), config.inner())?;
+    if ok {
+        Ok(())
+    } else {
+        Err(msg)
+    }
+}
+
 /// 启动串行环境流水线（应在独立线程调用；全进程只跑一次）。
 pub fn run_startup_env_pipeline(app: tauri::AppHandle) -> PipelineReport {
     if !try_mark_pipeline_started() {
@@ -446,19 +476,51 @@ pub fn run_startup_env_pipeline(app: tauri::AppHandle) -> PipelineReport {
     let app_atvv = app.clone();
 
     let mut runner = PipelineRunner::new();
-    runner.push(PipelineStep::Cable, || ensure_cable_once());
-    runner.push(PipelineStep::WinUHid, || {
-        crate::bridges::xiaomi::winuhid_env::ensure_runtime_quiet();
-        Ok(())
-    });
-    runner.push(PipelineStep::WaitAudio, move || {
+    #[cfg(not(target_os = "linux"))]
+    {
+        runner.push(PipelineStep::Cable, || ensure_cable_once());
+        runner.push(PipelineStep::WinUHid, || {
+            crate::bridges::xiaomi::winuhid_env::ensure_runtime_quiet();
+            Ok(())
+        });
+        runner.push(PipelineStep::WaitAudio, move || {
+            let _ = &app_audio;
+            wait_audio_router(std::time::Duration::from_secs(20))
+        });
+        runner.push(PipelineStep::WaitBridge, move || {
+            step_wait_bridge_with_one_reset(&app_bridge)
+        });
+        runner.push(PipelineStep::Atvv, move || step_atvv_once(&app_atvv));
+    }
+    // Linux：虚拟声卡 → 语音输出（虚拟麦克风/识别模型），虚拟键盘 → uinput；
+    // 不做「未连上就重置桥接」：遥控器休眠断开是常态，按键即回连
+    #[cfg(target_os = "linux")]
+    {
         let _ = &app_audio;
-        wait_audio_router(std::time::Duration::from_secs(20))
-    });
-    runner.push(PipelineStep::WaitBridge, move || {
-        step_wait_bridge_with_one_reset(&app_bridge)
-    });
-    runner.push(PipelineStep::Atvv, move || step_atvv_once(&app_atvv));
+        runner.push(PipelineStep::Cable, crate::linux::voice_sink::ensure_ready);
+        runner.push(PipelineStep::WinUHid, || {
+            if crate::linux::uinput_kbd::ensure_init() {
+                Ok(())
+            } else {
+                Err(crate::linux::uinput_kbd::last_error()
+                    .unwrap_or_else(|| "uinput 虚拟键盘不可用".into()))
+            }
+        });
+        runner.push(PipelineStep::WaitAudio, || Ok(()));
+        runner.push(PipelineStep::WaitBridge, move || {
+            let (alive, _) = wait_bridge_settle(
+                &app_bridge,
+                std::time::Duration::from_secs(45),
+                std::time::Duration::from_secs(8),
+            );
+            if alive {
+                Ok(())
+            } else {
+                Err("桥接未在时限内启动（将依赖后续重连）".into())
+            }
+        });
+        runner.push(PipelineStep::Atvv, move || step_atvv_once_linux(&app_atvv));
+    }
 
     let report = runner.run();
     log::info!(

@@ -41,6 +41,7 @@ type FnSubmitReport = unsafe extern "system" fn(*mut c_void, *const u8, u32) -> 
 type FnDestroyDevice = unsafe extern "system" fn(*mut c_void);
 
 struct Api {
+    #[cfg(target_os = "windows")]
     _module: windows::Win32::Foundation::HMODULE,
     create: FnCreateDevice,
     start: FnStartDevice,

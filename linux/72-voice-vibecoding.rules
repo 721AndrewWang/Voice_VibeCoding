@@ -1,0 +1,19 @@
+# Voice VibeCoding (Linux) — udev 规则
+# 安装位置：.deb 装在 /usr/lib/udev/rules.d/；从源码安装时由 linux/setup-system.sh 放到 /etc/udev/rules.d/
+#
+# 文件名必须排在 70-power-switch.rules 之后、73-seat-late.rules 之前：
+#   - 在 70 之后才能去掉 power-switch 标签（否则遥控器电源键会被 logind 当成关机键）
+#   - 在 73 之前打 uaccess 标签，logind 才会给当前登录用户加 ACL
+
+# 1) /dev/uinput：本软件用它创建虚拟键盘来注入映射后的快捷键
+KERNEL=="uinput", SUBSYSTEM=="misc", TAG+="uaccess", OPTIONS+="static_node=uinput"
+
+ACTION=="remove", GOTO="voice_vibecoding_end"
+
+# 2) 小米蓝牙遥控器 2 Pro（RC003，VID 2717 / PID 32B8，经 BlueZ HOG 走 uhid）
+#    - uaccess：本软件读取按键（evdev）与原始 HID 报告（hidraw）不需要 root
+#    - 去掉 power-switch：遥控器电源键只交给本软件映射，不触发系统关机/挂起
+SUBSYSTEM=="input", KERNEL=="event*", ATTRS{id/bustype}=="0005", ATTRS{id/vendor}=="2717", ATTRS{id/product}=="32b8", TAG+="uaccess", TAG-="power-switch", ENV{VOICE_VIBECODING_REMOTE}="1"
+SUBSYSTEM=="hidraw", KERNELS=="0005:2717:32B8.*", TAG+="uaccess", ENV{VOICE_VIBECODING_REMOTE}="1"
+
+LABEL="voice_vibecoding_end"

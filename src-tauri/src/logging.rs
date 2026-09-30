@@ -198,9 +198,17 @@ pub fn open_log_in_editor() -> Result<(), String> {
             .map_err(|e| format!("打开日志失败: {e}"))?;
         return Ok(());
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "linux")]
     {
-        Err("仅支持 Windows".into())
+        std::process::Command::new("xdg-open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("打开日志失败: {e}"))?;
+        Ok(())
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
+    {
+        Err("仅支持 Windows / Linux".into())
     }
 }
 

@@ -187,7 +187,13 @@ fn xiaomi_reconnect_loop(
                 BridgeStatus::Connecting,
             );
         }
-        if wait_interruptible(&runtime, retry) {
+        // Linux 的 discover_and_connect 自己会等遥控器回连（按键唤醒即连），无需再固定等 retry
+        let pause = if cfg!(target_os = "linux") {
+            std::time::Duration::from_millis(300)
+        } else {
+            retry
+        };
+        if wait_interruptible(&runtime, pause) {
             break;
         }
     }
@@ -411,6 +417,11 @@ pub async fn get_xiaomi_voice_meter(
 }
 
 pub fn xiaomi_host_status_now(app: &AppHandle) -> XiaomiHostStatus {
+    #[cfg(target_os = "linux")]
+    {
+        return crate::linux::host_status::build(app);
+    }
+    #[allow(unreachable_code)]
     let bridge_alive = app
         .try_state::<Arc<XiaomiRuntime>>()
         .map(|r| r.running.load(std::sync::atomic::Ordering::SeqCst))
@@ -771,10 +782,17 @@ pub async fn open_logs_folder(config_manager: State<'_, ConfigManager>) -> Resul
             .spawn()
             .map_err(|e| format!("打开日志目录失败: {e}"))?;
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&dir)
+            .spawn()
+            .map_err(|e| format!("打开日志目录失败: {e}"))?;
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
         let _ = dir;
-        return Err("仅支持 Windows".into());
+        return Err("仅支持 Windows / Linux".into());
     }
     Ok(())
 }

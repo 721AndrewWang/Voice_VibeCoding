@@ -36,10 +36,14 @@ pub fn set_autostart_enabled(enable: bool) -> Result<(), String> {
         remove_legacy_startup_shortcut();
         Ok(())
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "linux")]
+    {
+        crate::linux::autostart::set_enabled(enable)
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
         let _ = enable;
-        Err("仅支持 Windows".into())
+        Err("仅支持 Windows / Linux".into())
     }
 }
 
@@ -48,7 +52,11 @@ pub fn is_autostart_enabled() -> bool {
     {
         run_key_exists() || legacy_shortcut_exists()
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "linux")]
+    {
+        crate::linux::autostart::is_enabled()
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
         false
     }
@@ -91,7 +99,11 @@ pub fn reconcile_autostart_entries(settings_autostart: Option<bool>) {
             }
         }
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "linux")]
+    {
+        crate::linux::autostart::reconcile(settings_autostart);
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
         let _ = settings_autostart;
     }

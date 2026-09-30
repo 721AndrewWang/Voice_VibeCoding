@@ -263,6 +263,11 @@ pub fn emit_if_available(app: &AppHandle, result: &UpdateCheckResult) {
 }
 
 pub fn spawn_startup_check(app: AppHandle) {
+    // 上游只发布 Windows 安装包；Linux 版从源码构建，不做启动自动检查（设置页仍可手动检查）
+    if cfg!(target_os = "linux") {
+        let _ = app;
+        return;
+    }
     std::thread::Builder::new()
         .name("app-update-check".into())
         .spawn(move || {

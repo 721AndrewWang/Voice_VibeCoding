@@ -89,6 +89,16 @@ pub fn event(
     hook: Option<HookCtx>,
 ) {
     let seq = next_seq();
+    // Linux：遥控器的固件 F5 由 evdev 独占读取，根本到不了系统，追踪只有调试价值
+    if cfg!(target_os = "linux") {
+        log::debug!(
+            "XIAOMI F5 TRACE seq={seq} layer={layer} phase={phase} action={action} \
+             {}{} detail={detail}",
+            guards_str(guards),
+            hook_str(hook),
+        );
+        return;
+    }
     log::info!(
         "XIAOMI F5 TRACE seq={seq} layer={layer} phase={phase} action={action} \
          {}{} detail={detail}",

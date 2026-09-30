@@ -67,6 +67,17 @@ winreg = "0.52"
 # For audio resampling
 rubato = "0.14"
 
+# Linux 后端：BlueZ（ATVV 语音）、evdev/uinput（遥控器按键与虚拟键盘）、
+# 剪贴板上屏、X11 快捷键录入、本地离线语音识别（sherpa-onnx，静态链接）
+[target.'cfg(target_os = "linux")'.dependencies]
+bluer = { version = "0.17", features = ["bluetoothd"] }
+evdev = "0.13"
+arboard = { version = "3", default-features = false }
+x11rb = "0.13"
+futures = "0.3"
+libc = "0.2"
+sherpa-onnx = "=1.13.8"
+
 [profile.dev]
 opt-level = 1
 incremental = false

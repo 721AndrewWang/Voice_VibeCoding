@@ -225,10 +225,14 @@ pub fn discover_and_connect(
     {
         return windows_discover_and_connect(configured_address);
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "linux")]
+    {
+        return crate::linux::bluez::discover_and_connect(configured_address);
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
         let _ = configured_address;
-        Err("小米遥控器连接仅支持 Windows".into())
+        Err("小米遥控器连接仅支持 Windows / Linux".into())
     }
 }
 
@@ -238,6 +242,13 @@ pub fn monitor_connection(
     stop: Arc<XiaomiRuntime>,
     app: Option<tauri::AppHandle>,
 ) -> Result<(), String> {
+    // Linux：按键由常驻的 evdev 线程（linux::remote_input）处理，这里只跑 BlueZ/ATVV 会话
+    #[cfg(target_os = "linux")]
+    {
+        let app = app.ok_or("monitor_connection: 缺少 AppHandle")?;
+        return crate::linux::bluez::monitor_connection(conn, stop, app);
+    }
+    #[cfg(not(target_os = "linux"))]
     if let Some(app) = app.clone() {
         crate::bridges::xiaomi::key_log::start_key_logger(
             app,
@@ -250,10 +261,10 @@ pub fn monitor_connection(
     {
         return windows_monitor_connection(conn.address_u64, stop);
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
         let _ = (conn, stop, app);
-        Err("小米遥控器连接仅支持 Windows".into())
+        Err("小米遥控器连接仅支持 Windows / Linux".into())
     }
 }
 

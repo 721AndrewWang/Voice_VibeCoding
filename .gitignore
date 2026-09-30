@@ -60,6 +60,9 @@ docs/install-winuhid(1).ps1
 
 tools/silent-updater/target/
 
+# Linux 打包产物（bash linux/package-deb.sh）
+/dist-linux/
+
 # WDK NuGet restore + local KMDF build intermediates (keep shipped .sys / scripts)
 src-tauri/assets/t1_hid_filter/driver/packages/
 src-tauri/assets/t1_hid_filter/driver/obj/

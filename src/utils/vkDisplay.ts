@@ -1,3 +1,10 @@
+/** Linux 桌面把 Win 键叫 Super（GNOME/KDE 设置里都这么写） */
+function winKeyLabel(side: "左" | "右"): string {
+  const linux =
+    typeof document !== "undefined" && document.documentElement.dataset.platform === "linux";
+  return `${side} ${linux ? "Super" : "Win"}`;
+}
+
 /** VK → 显示名（与 Rust `vk_to_label` / Python NAMED_KEYS 对齐） */
 export function vkDisplayName(vk: number): string {
   const map: Record<number, string> = {
@@ -36,8 +43,8 @@ export function vkDisplayName(vk: number): string {
     0x12: "左 Alt",
     0xa4: "左 Alt",
     0xa5: "右 Alt",
-    0x5b: "左 Win",
-    0x5c: "右 Win",
+    0x5b: winKeyLabel("左"),
+    0x5c: winKeyLabel("右"),
     0xad: "静音",
     0xae: "音量-",
     0xaf: "音量+",

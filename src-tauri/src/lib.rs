@@ -8,6 +8,8 @@ pub mod webview_guard;
 pub mod webview_recovery;
 pub mod file_download;
 pub mod startup_env;
+#[cfg(target_os = "linux")]
+pub mod linux;
 
 use tauri::{Manager, RunEvent};
 
@@ -20,6 +22,8 @@ fn cleanup_on_exit(app: &tauri::AppHandle) {
     }
     bridges::xiaomi::hid_report_tap::stop_and_join();
     bridges::xiaomi::special_keys::stop_special_key_hook();
+    #[cfg(target_os = "linux")]
+    linux::shutdown();
 }
 
 /// 自启参数解析：`--minimized`（Run 注册表自启项携带）。
@@ -43,6 +47,10 @@ pub fn should_ignore_second_instance(args: &[String]) -> bool {
 }
 
 fn on_second_instance_launch(app: &tauri::AppHandle) {
+    // Linux：自启项带 --minimized（上面已忽略），走到这里的都是用户从应用列表点开的 → 显示窗口
+    #[cfg(target_os = "linux")]
+    let start_minimized = false;
+    #[cfg(not(target_os = "linux"))]
     let start_minimized = config::manager::ConfigManager::read_start_minimized_to_tray(app);
     webview_recovery::apply_second_instance_policy(app, start_minimized);
 }
@@ -57,6 +65,14 @@ pub fn run() {
     #[cfg(desktop)]
     {
         builder = builder.plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            // 联调：`remote-bridge-hub --simulate-voice x.wav` 交给已运行的实例模拟一次语音键
+            #[cfg(target_os = "linux")]
+            if let Some(i) = args.iter().position(|a| a == "--simulate-voice") {
+                if let Some(path) = args.get(i + 1) {
+                    linux::simulate::simulate_voice(app.clone(), path.clone());
+                }
+                return;
+            }
             if should_ignore_second_instance(&args) {
                 log::info!(
                     "single-instance: duplicate --minimized launch ignored (keep tray)"
@@ -107,6 +123,10 @@ pub fn run() {
 
             // 快捷键录制会话
             app.manage(bridges::shared::shortcut_capture::ShortcutCaptureSession::new());
+
+            // Linux 后端：BlueZ / evdev / uinput / PipeWire / 本地识别
+            #[cfg(target_os = "linux")]
+            linux::init(app.handle());
 
             // Setup tray menu（必须 manage，否则 TrayIcon Drop 会摘掉托盘）
             let tray = ipc::tray::setup_tray(app.handle())?;
@@ -190,6 +210,8 @@ pub fn run() {
             app_update::spawn_startup_check(app.handle().clone());
 
             // WebView2 健康守卫：前端每 5s 心跳；reload 无效时自动 recreate
+            // （WebKitGTK 没有 WebView2 的回收白屏问题，且隐藏页面会节流定时器，Linux 不启用）
+            #[cfg(target_os = "windows")]
             {
                 let guard_app = app.handle().clone();
                 std::thread::Builder::new()
@@ -253,6 +275,17 @@ pub fn run() {
             ipc::update_cmds::download_app_update,
             ipc::commands::webview_ping,
             ipc::commands::reveal_main_on_frontend_ready,
+            ipc::platform_cmds::get_platform_info,
+            ipc::platform_cmds::get_linux_voice_settings,
+            ipc::platform_cmds::save_linux_voice_settings,
+            ipc::platform_cmds::get_asr_status,
+            ipc::platform_cmds::download_asr_model,
+            ipc::platform_cmds::get_asr_models,
+            ipc::platform_cmds::cancel_asr_model_download,
+            ipc::platform_cmds::get_bluetooth_diagnostics,
+            ipc::platform_cmds::get_remote_input_status,
+            ipc::platform_cmds::open_bluetooth_settings,
+            ipc::platform_cmds::open_models_folder,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
@@ -301,7 +334,7 @@ mod tests {
 
     #[test]
     fn second_instance_policy_follows_setting() {
-        use config::manager::GlobalSettings;
+        use crate::config::manager::GlobalSettings;
         assert!(!GlobalSettings::default().start_minimized_to_tray);
         assert!(GlobalSettings::parse_start_minimized_to_tray_json(
             r#"{"autostart":false,"language":"zh-CN","minimize_to_tray":true,"start_minimized_to_tray":true}"#

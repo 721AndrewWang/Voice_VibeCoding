@@ -38,5 +38,9 @@ pub fn download_app_update(
     url: String,
     version: String,
 ) -> Result<(), String> {
+    if cfg!(target_os = "linux") {
+        let _ = (app, config_manager, url, version);
+        return Err("Linux 版请在源码目录执行 git pull 后重新运行 linux/install.sh 升级".into());
+    }
     crate::app_update::spawn_download(app, config_manager.inner(), url, version)
 }

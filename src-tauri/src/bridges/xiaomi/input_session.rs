@@ -931,17 +931,34 @@ fn subscribe_atvv_from_interface(
     subscribe_atvv_service(app, &service, gate, tokens)
 }
 
-/// ATVV 语音会话共享状态
-struct AtvvVoiceState {
-    decoder: crate::bridges::xiaomi::adpcm_decoder::AdpcmDecoder,
-    streaming: bool,
-    pending: Vec<u8>,
-    frame_size: usize,
-    pending_sync: Option<(i32, i32)>,
-    last_mic_off: Option<Instant>,
-    frames: u64,
+/// ATVV 语音会话共享状态（Windows WinRT 与 Linux BlueZ 后端共用）
+pub(crate) struct AtvvVoiceState {
+    pub(crate) decoder: crate::bridges::xiaomi::adpcm_decoder::AdpcmDecoder,
+    pub(crate) streaming: bool,
+    pub(crate) pending: Vec<u8>,
+    pub(crate) frame_size: usize,
+    pub(crate) pending_sync: Option<(i32, i32)>,
+    pub(crate) last_mic_off: Option<Instant>,
+    pub(crate) frames: u64,
     /// 遥控语音键当前是否按下
-    remote_pressed: bool,
+    pub(crate) remote_pressed: bool,
+}
+
+impl AtvvVoiceState {
+    /// 与 Windows 订阅路径的初值一致：16 kHz IMA-ADPCM，默认帧长 120（CAPS 会覆盖）
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn new() -> Self {
+        Self {
+            decoder: crate::bridges::xiaomi::adpcm_decoder::AdpcmDecoder::new_ima(),
+            streaming: false,
+            pending: Vec::new(),
+            frame_size: 120,
+            pending_sync: None,
+            last_mic_off: None,
+            frames: 0,
+            remote_pressed: false,
+        }
+    }
 }
 
 #[cfg(target_os = "windows")]
@@ -984,7 +1001,7 @@ fn arm_atvv_voice_session(state: &Arc<Mutex<AtvvVoiceState>>, clear_frames: bool
 
 /// 按 `voice_press::voice_remote_press_steps` 顺序执行遥控语音键按下。
 /// 纯 hold 语义：按下 → 映射键 DOWN，抬起 → UP（单击=热键按一次，按住=热键持续按住）。
-fn on_voice_remote_press(app: &AppHandle, gate: &KeyEmitGate, state: &Arc<Mutex<AtvvVoiceState>>) {
+pub(crate) fn on_voice_remote_press(app: &AppHandle, gate: &KeyEmitGate, state: &Arc<Mutex<AtvvVoiceState>>) {
     use crate::bridges::xiaomi::voice_pcm;
 
     {
@@ -1016,7 +1033,7 @@ fn on_voice_remote_press(app: &AppHandle, gate: &KeyEmitGate, state: &Arc<Mutex<
 }
 
 /// 遥控语音键抬起：结束传声 + 映射键 UP
-fn on_voice_remote_release(app: &AppHandle, gate: &KeyEmitGate, state: &Arc<Mutex<AtvvVoiceState>>) {
+pub(crate) fn on_voice_remote_release(app: &AppHandle, gate: &KeyEmitGate, state: &Arc<Mutex<AtvvVoiceState>>) {
     use crate::bridges::xiaomi::voice_pcm;
     let was_pressed = {
         let Ok(mut st) = state.lock() else {
@@ -1244,7 +1261,7 @@ fn subscribe_atvv_service(
     Ok(true)
 }
 
-fn handle_atvv_audio(state: &Arc<Mutex<AtvvVoiceState>>, payload: &[u8]) {
+pub(crate) fn handle_atvv_audio(state: &Arc<Mutex<AtvvVoiceState>>, payload: &[u8]) {
     use crate::bridges::xiaomi::adpcm_decoder::postprocess;
     use crate::bridges::xiaomi::voice_pcm;
 
@@ -1279,6 +1296,9 @@ fn handle_atvv_audio(state: &Arc<Mutex<AtvvVoiceState>>, payload: &[u8]) {
             st.decoder.reset_with(pred, idx);
         }
         let samples = st.decoder.decode_bytes(&frame);
+        // Linux 本地识别用增益前的原始 PCM（+10 dB 增益会让大声说话削顶）
+        #[cfg(target_os = "linux")]
+        voice_pcm::push_raw_16k(&samples);
         let samples = postprocess(&samples, crate::bridges::xiaomi::voice_gain::gain_db());
         voice_pcm::push_16k(&samples);
         st.frames += 1;
@@ -1294,6 +1314,7 @@ fn handle_atvv_audio(state: &Arc<Mutex<AtvvVoiceState>>, payload: &[u8]) {
     }
 }
 
+#[cfg(target_os = "windows")]
 fn handle_atvv_control(
     app: &AppHandle,
     gate: &KeyEmitGate,

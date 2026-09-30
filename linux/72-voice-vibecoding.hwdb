@@ -1,0 +1,11 @@
+# Voice VibeCoding（Linux）— hwdb 键码重映射
+# 安装位置：.deb 装在 /usr/lib/udev/hwdb.d/；从源码安装时由 linux/setup-system.sh 放到 /etc/udev/hwdb.d/
+#
+# 小米蓝牙遥控器 2 Pro（VID 2717 / PID 32B8）的语音键（HID usage 0x3E，原生是 F5）
+# 与电源键（0x66）改成无效键码。遥控器每次断线重连，内核都会重建它的输入节点；
+# 本软件来不及独占的那一瞬间，这两个键漏给桌面也不会「刷新网页」或「弹出关机菜单」。
+# 本软件按 MSC_SCAN（HID usage）识别按键，不受这里影响；其它键保持原样，
+# 软件没运行时方向键 / OK / 返回 / 音量仍可当普通键盘用。
+evdev:input:b0005v2717p32B8*
+ KEYBOARD_KEY_7003e=unknown
+ KEYBOARD_KEY_70066=unknown

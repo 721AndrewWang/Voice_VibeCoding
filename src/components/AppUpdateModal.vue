@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { storeToRefs } from "pinia";
 import { useAppUpdateStore } from "../stores/appUpdate";
+import { isLinux } from "../stores/platform";
 
 const store = useAppUpdateStore();
 const {
@@ -37,7 +38,11 @@ function progressWidth(): string {
       >
         <div class="update-dialog-scroll">
           <h3 id="app-update-title">发现新版本 V{{ updateInfo.latestVersion }}</h3>
-          <p class="update-intro">
+          <p v-if="isLinux" class="update-intro">
+            当前版本 V{{ updateInfo.currentVersion }}。上游只发布 Windows 安装包；Linux 版请在源码目录执行
+            <code>git pull</code> 后重新运行 <code>linux/install.sh</code>（配置会保留）。
+          </p>
+          <p v-else class="update-intro">
             当前版本 V{{ updateInfo.currentVersion }}。点击「下载并安装」后将自动静默升级（保留配置）：下载完成后会退出本程序，显示升级进度窗，装完后自动打开。过程中除 Windows 权限确认（UAC）外无其它弹框。
           </p>
           <p v-if="updateInfo.promptSuppressed" class="update-suppressed-hint" role="note">
@@ -83,6 +88,7 @@ function progressWidth(): string {
 
         <div class="update-actions">
           <button
+            v-if="!isLinux"
             class="update-btn update-btn-primary"
             type="button"
             :disabled="isDownloading || downloadPhase === 'complete'"

@@ -908,7 +908,12 @@ fn tap_vks_sendinput_extra(vks: &[u16], hold_ms: u64) {
         let _ = key_chord_send_input_with_extra(vks, true, EXTRA_INFO);
         let _ = ACTION_SEQ.fetch_add(1, Ordering::Relaxed);
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "linux")]
+    {
+        let _ = crate::linux::uinput_kbd::tap_chord(vks, hold_ms);
+        let _ = ACTION_SEQ.fetch_add(1, Ordering::Relaxed);
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
         let _ = (vks, hold_ms);
     }
@@ -923,6 +928,13 @@ fn handle_voice(app: &AppHandle, pressed: bool) {
         force_release_voice_shortcut("remote_up");
         crate::bridges::xiaomi::key_log::set_virtual_hid_chord_held(None);
         end_voice_period("remote_up");
+        return;
+    }
+
+    // Linux 本地识别模式：语音直接在本机识别上屏，不需要唤醒输入法的快捷键
+    #[cfg(target_os = "linux")]
+    if crate::linux::voice_sink::hotkey_suppressed_by_mode() {
+        log::info!("XIAOMI VOICE local ASR mode: hotkey injection skipped");
         return;
     }
 
@@ -1145,6 +1157,13 @@ fn has_alt_modifier(vks: &[u16]) -> bool {
 }
 
 pub fn tap_vks(vks: &[u16], hold_ms: u64) {
+    #[cfg(target_os = "linux")]
+    {
+        let ok = crate::linux::uinput_kbd::tap_chord(vks, hold_ms);
+        let _ = ACTION_SEQ.fetch_add(1, Ordering::Relaxed);
+        log::debug!("XIAOMI MAPPING inject uinput vks={vks:?} hold_ms={hold_ms} ok={ok}");
+        return;
+    }
     // 音量/静音：优先走 SendInput 的 VK_VOLUME_*（系统音量最稳）
     // 计算器等其它键：先试 WinUHid（含 consumer），再回落 SendInput
     let is_volume = vks.len() == 1 && matches!(vks[0], 0xAD | 0xAE | 0xAF);
@@ -1309,7 +1328,13 @@ fn tap_unicode_text(text: &str) {
             }
         }
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "linux")]
+    {
+        if let Err(e) = crate::linux::text_commit::commit_text(text) {
+            log::warn!("XIAOMI MAPPING text input failed: {e}");
+        }
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
         let _ = text;
     }
@@ -1328,7 +1353,15 @@ fn key_chord(vks: &[u16], key_up: bool) {
         }
         let _ = key_chord_send_input_with_extra(vks, key_up, 0);
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "linux")]
+    {
+        let _ = if key_up {
+            crate::linux::uinput_kbd::release_chord(vks)
+        } else {
+            crate::linux::uinput_kbd::press_chord(vks)
+        };
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
         let _ = (vks, key_up);
     }
@@ -1478,7 +1511,22 @@ fn inject_voice_chord(vks: &[u16], key_up: bool) -> bool {
             }
         }
     }
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "linux")]
+    {
+        // uinput 是唯一后端：DOWN 按 Ctrl→Shift→Super→Alt→主键，UP 逆序
+        let vks = crate::bridges::xiaomi::voice_inject::normalize_voice_chord_vks(vks);
+        let ok = if key_up {
+            crate::linux::uinput_kbd::release_chord(&vks)
+        } else {
+            crate::linux::uinput_kbd::press_chord(&vks)
+        };
+        if ok && !key_up {
+            crate::bridges::xiaomi::key_log::emit_mapped_outputs(&vks, true);
+        }
+        log::info!("XIAOMI VOICE inject via uinput key_up={key_up} ok={ok} vks={vks:?}");
+        ok
+    }
+    #[cfg(not(any(target_os = "windows", target_os = "linux")))]
     {
         let _ = (vks, key_up);
         false
