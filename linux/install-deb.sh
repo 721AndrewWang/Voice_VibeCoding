@@ -38,7 +38,9 @@ chmod 755 "$TMP_DIR"
 chmod 644 "$TMP_DIR/$(basename "$DEB")"
 
 echo ">>> [1/4] 安装 $(basename "$DEB")（需要 sudo 密码）"
-sudo apt-get install -y --reinstall "$TMP_DIR/$(basename "$DEB")"
+# --no-remove：依赖若要求删掉任何已装的包就直接中止（-y 不会替你确认删除，
+# 曾有一次 apt-get install -y 因多架构版本冲突连带删掉了整个桌面）
+sudo apt-get install -y --no-remove --reinstall "$TMP_DIR/$(basename "$DEB")"
 
 echo ">>> [2/4] udev 规则 / hwdb 改由软件包管理"
 # 去掉注释和空行再比较：只是说明文字不同也算同一份

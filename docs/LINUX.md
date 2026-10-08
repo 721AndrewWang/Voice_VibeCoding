@@ -66,6 +66,26 @@ bash linux/install-deb.sh
 开发调试时也可以不打包，直接装到 `~/.local`：`bash linux/install.sh`（与 .deb 二选一，
 `install-deb.sh` 会自动清掉 `~/.local` 这份）。
 
+安装脚本给 apt 加了 `--no-remove`：依赖冲突时直接中止，绝不会连带删除已装的包。
+
+### 迁移到另一台电脑
+
+在已经装好、配好的电脑上打一个迁移包（.deb + 识别模型 + 全局设置与按键映射 + 一键安装脚本）：
+
+```bash
+bash linux/make-migration-bundle.sh   # → dist-linux/voice-vibecoding-migrate-<版本>.tar（约 1.2GB；加 --no-models 只有 17MB）
+```
+
+拷到新电脑上（要求同上：Ubuntu 24.04、64 位 x86，建议 Xorg 会话）运行：
+
+```bash
+tar -xf voice-vibecoding-migrate-<版本>.tar
+bash voice-vibecoding-migrate-<版本>/install.sh
+```
+
+安装脚本会检查系统、装包、拷入设置与模型（新电脑上原有的设置先备份成 `.bak-时间`），
+最后在托盘启动。装好后在新电脑上配对遥控器；遥控器很可能只记得一台电脑，回原来那台可能要重新配对。
+
 语音识别模型在小米页面「语音输出」卡片里选择并点「下载模型」（Qwen3-ASR 约 990MB，SenseVoice 约 240MB），
 来源为 hf-mirror.com / huggingface.co（多线程下载，自动校验 sha256），存放在
 `~/.local/share/com.remote-bridge-hub.app/models/`。
