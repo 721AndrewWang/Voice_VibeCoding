@@ -27,6 +27,12 @@ pkg-config --exists webkit2gtk-4.1 dbus-1 ayatana-appindicator3-0.1 || {
 CACHE="$HOME/.cache/voice-vibecoding/sherpa-onnx-archives"
 [ -d "$CACHE" ] && export SHERPA_ONNX_ARCHIVE_DIR="$CACHE"
 
+# 程序里的源码路径（panic 位置等）不带构建机的 home 目录和用户名
+CARGO_DIR="${CARGO_HOME:-$HOME/.cargo}"
+RUSTUP_DIR="${RUSTUP_HOME:-$HOME/.rustup}"
+REMAP="--remap-path-prefix=$CARGO_DIR=/cargo"$'\x1f'"--remap-path-prefix=$RUSTUP_DIR=/rustup"$'\x1f'"--remap-path-prefix=$ROOT=/build"
+export CARGO_ENCODED_RUSTFLAGS="${CARGO_ENCODED_RUSTFLAGS:+$CARGO_ENCODED_RUSTFLAGS$'\x1f'}$REMAP"
+
 VERSION="$(node -p "require('./src-tauri/tauri.conf.json').version")"
 ARCH="$(dpkg --print-architecture)"
 

@@ -96,6 +96,8 @@ fn asset_candidates(file_name: &str) -> Vec<PathBuf> {
             }
         }
     }
+    // 开发时回落到源码目录；Linux release 不用 VB-CABLE，也不把构建机路径编进程序
+    #[cfg(any(debug_assertions, target_os = "windows"))]
     if let Some(manifest) = option_env!("CARGO_MANIFEST_DIR") {
         out.push(
             PathBuf::from(manifest)
