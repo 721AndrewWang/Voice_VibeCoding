@@ -576,7 +576,8 @@ mod tests {
     #[test]
     fn test_default_xiaomi_config() {
         let config = ConfigManager::default_config_for("xiaomi");
-        assert_eq!(config.button_aliases.len(), 13);
+        // 13 个实体键 + dpad_* / voice / mute 等同义名
+        assert_eq!(config.button_aliases.len(), 20);
         assert!(config.button_bindings.contains_key("volume_up"));
         // v1.3.14 默认对齐用户调优配置：语音 = Ctrl+左Win，点击模式
         assert_eq!(
