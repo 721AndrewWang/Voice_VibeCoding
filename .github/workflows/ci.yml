@@ -11,7 +11,7 @@ jobs:
     name: Linux build and tests
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: System packages
         run: |
@@ -20,9 +20,9 @@ jobs:
             pkg-config libwebkit2gtk-4.1-dev libssl-dev libayatana-appindicator3-dev \
             librsvg2-dev libxdo-dev libdbus-1-dev
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Frontend tests and build
