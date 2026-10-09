@@ -9,7 +9,8 @@
 
 脚本位置：装了 .deb 的在 /usr/share/voice-vibecoding/bt-dualboot.py，源码里是 linux/bt-dualboot.py。
 
-默认设备：小米蓝牙遥控器 2 Pro（C0:5D:39:C2:B9:AE）。
+不写设备MAC时，自动找 Linux 里已配对、名字含 “MI RC” 的设备（小米蓝牙遥控器 2 Pro）；
+找不到或有多个时，请写上 MAC。
 Windows 分区只以只读方式挂载，不会改动 Windows；Linux 侧改动前自动备份到
 /var/lib/bluetooth/<适配器>/<设备>/info.bak-<时间>。
 """
@@ -23,7 +24,7 @@ import subprocess
 import sys
 import tempfile
 
-DEFAULT_DEVICE = "C0:5D:39:C2:B9:AE"
+DEVICE_NAME_HINT = "MI RC"  # 小米蓝牙遥控器 2 Pro 广播的名字
 BT_DIR = "/var/lib/bluetooth"
 REPORT = None  # inspect 摘要另存一份给当前用户看
 
@@ -453,6 +454,31 @@ def cmd_import_windows(device: str):
         print(f"    sudo systemctl stop bluetooth && sudo cp {backup} {path} && sudo systemctl start bluetooth")
 
 
+def detect_device() -> str:
+    """在 BlueZ 的配对记录里找名字含 DEVICE_NAME_HINT 的设备，只有一个时返回它的 MAC"""
+    found = set()
+    for adapter in sorted(os.listdir(BT_DIR)) if os.path.isdir(BT_DIR) else []:
+        adir = os.path.join(BT_DIR, adapter)
+        for mac in os.listdir(adir) if os.path.isdir(adir) else []:
+            info = os.path.join(adir, mac, "info")
+            if not re.fullmatch(r"[0-9A-F]{2}(:[0-9A-F]{2}){5}", mac) or not os.path.isfile(info):
+                continue
+            cp = configparser.ConfigParser(interpolation=None)
+            cp.optionxform = str
+            try:
+                cp.read(info, encoding="utf-8")
+            except configparser.Error:
+                continue
+            if DEVICE_NAME_HINT.lower() in cp.get("General", "Name", fallback="").lower():
+                found.add(mac)
+    if len(found) == 1:
+        return found.pop()
+    if not found:
+        die(f"Linux 里没找到名字含 “{DEVICE_NAME_HINT}” 的已配对设备，请在命令后面写上遥控器的 MAC\n"
+            "（Linux 里配对过：bluetoothctl devices；只在 Windows 里配对过：设备管理器 → 蓝牙 → 遥控器 → 属性 → 详细信息 → 蓝牙设备地址）")
+    die(f"找到多个名字含 “{DEVICE_NAME_HINT}” 的设备（{', '.join(sorted(found))}），请在命令后面写上要用的 MAC")
+
+
 def main():
     global REPORT
     if len(sys.argv) < 2 or sys.argv[1] not in ("inspect", "import-windows"):
@@ -462,7 +488,7 @@ def main():
         os.execvp("sudo", ["sudo", sys.executable] + sys.argv)
     if not (shutil.which("hivexsh") and shutil.which("hivexget")):
         die("需要 hivex 工具读取 Windows 注册表，请先安装：sudo apt install libhivex-bin")
-    device = (sys.argv[2] if len(sys.argv) > 2 else DEFAULT_DEVICE).upper()
+    device = (sys.argv[2] if len(sys.argv) > 2 else detect_device()).upper()
     if not re.fullmatch(r"[0-9A-F]{2}(:[0-9A-F]{2}){5}", device):
         die(f"设备地址格式不对：{device}")
     if sys.argv[1] == "inspect":
