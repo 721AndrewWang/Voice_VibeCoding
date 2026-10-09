@@ -113,6 +113,12 @@ apple macos版 ，作者 [nijez](https://github.com/nijez)
 在 Ubuntu 24.04（GNOME / X11）上从源码打包成 .deb 安装，界面与按键映射配置与 Windows 版相同；
 语音默认走**本地离线识别直接上屏**（Qwen3-ASR，中英混说；Linux 没有微信/豆包输入法的语音听写），也可切换为 PipeWire 虚拟麦克风。
 
+![Linux 版主界面：遥控器状态、语音输出设置与状态日志](docs/images/linux-zh-main.png)
+
+![按键映射：遥控器每个键都能映射成快捷键](docs/images/linux-zh-keymap.png)
+
+界面默认英文，点顶栏的「中文」切换成中文（会记住选择）。
+
 ```bash
 sudo bash linux/setup-system.sh   # 一次性：编译依赖
 bash linux/package-deb.sh         # 构建 + 打包 → dist-linux/voice-vibe-coding_<版本>_amd64.deb

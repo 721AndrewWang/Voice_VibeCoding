@@ -2,6 +2,12 @@
 
 在 Linux（已在 Ubuntu 24.04 / GNOME / X11 上验证）运行本软件：小米蓝牙遥控器 2 Pro 的按键映射 + 语音输入。
 
+![Linux 版主界面：遥控器状态、语音输出设置与状态日志](images/linux-zh-main.png)
+
+![按键映射：遥控器每个键都能映射成快捷键](images/linux-zh-keymap.png)
+
+界面默认英文，点顶栏的「中文」切换成中文（会记住选择）。
+
 界面、按键映射配置（`xiaomi.json`）与 Windows 版完全相同；底层换成 Linux 原生组件：
 
 | 功能 | Windows 版 | Linux 版 |
