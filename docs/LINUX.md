@@ -112,7 +112,8 @@ ATVV 语音通道约 1～2 秒内恢复（界面短暂显示「等待遥控器�
    ```bash
    sudo python3 /usr/share/voice-vibecoding/bt-dualboot.py import-windows
    ```
-   （没装 .deb 时用源码里的 `linux/bt-dualboot.py`；需要 `sudo apt install libhivex-bin`）
+   （没装 .deb 时用源码里的 `linux/bt-dualboot.py`；需要 `sudo apt install libhivex-bin`。
+   默认自动找 Linux 里配对过的「MI RC」；找不到时在命令后面写上遥控器的 MAC，如 `import-windows AA:BB:CC:DD:EE:FF`）
    它只读挂载 Windows 分区，读出注册表里的配对密钥写进 BlueZ（原文件自动备份，可一键还原）。
 4. 按遥控器任意键，Linux 下即可直接连上；之后两个系统切换都不用再配对。
 
