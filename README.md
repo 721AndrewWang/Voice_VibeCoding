@@ -1,5 +1,7 @@
 # Voice VibeCoding for Linux
 
+[![CI](https://github.com/721AndrewWang/Voice_VibeCoding/actions/workflows/ci.yml/badge.svg?branch=linux-port)](https://github.com/721AndrewWang/Voice_VibeCoding/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/721AndrewWang/Voice_VibeCoding?include_prereleases)](https://github.com/721AndrewWang/Voice_VibeCoding/releases)
+
 **English** | [中文 (original project README)](README.zh-CN.md) | [中文 Linux 文档](docs/LINUX.md)
 
 Turn a Xiaomi Bluetooth Remote 2 Pro into a push-to-talk controller for coding on Linux. Hold the voice button and talk; when you let go, your speech is transcribed **offline on your machine** and pasted at the cursor. Mixed Chinese and English works, technical terms included. Every other button can be mapped to any keyboard shortcut.

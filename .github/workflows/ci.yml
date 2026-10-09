@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [linux-port, linux-support]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  linux:
+    name: Linux build and tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: System packages
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y --no-install-recommends \
+            pkg-config libwebkit2gtk-4.1-dev libssl-dev libayatana-appindicator3-dev \
+            librsvg2-dev libxdo-dev libdbus-1-dev
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Frontend tests and build
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+          npm run build
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Rust tests
+        run: |
+          cargo test --manifest-path src-tauri/Cargo.toml --lib
+          npm run test:rust
