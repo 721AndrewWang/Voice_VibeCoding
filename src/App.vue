@@ -7,6 +7,7 @@ import SideNav from "./components/SideNav.vue";
 import AppUpdateModal from "./components/AppUpdateModal.vue";
 import { useAppUpdateStore } from "./stores/appUpdate";
 import { useGlobalSettingsStore } from "./stores/globalSettings";
+import { t, tb } from "./i18n";
 
 const appUpdate = useAppUpdateStore();
 const globalSettings = useGlobalSettingsStore();
@@ -37,18 +38,18 @@ const conflict = ref<ConflictSnapshot | null>(null);
 const busy = ref(false);
 const actionMsg = ref("");
 
-function triggerLabel(t: string): string {
-  switch (t) {
+function triggerLabel(trigger: string): string {
+  switch (trigger) {
     case "pcm_port":
-      return "语音端口冲突";
+      return t("语音端口冲突", "Voice port conflict");
     case "hid_tap_port":
-      return "HID Tap 端口冲突";
+      return t("HID Tap 端口冲突", "HID Tap port conflict");
     case "atvv":
-      return "ATVV 语音通道失败";
+      return t("ATVV 语音通道失败", "ATVV voice channel failed");
     case "atvv_repair":
-      return "修复 ATVV：请先结束占用";
+      return t("修复 ATVV：请先结束占用", "Repair ATVV: end the blocking process first");
     default:
-      return "桥接进程冲突";
+      return t("桥接进程冲突", "Bridge process conflict");
   }
 }
 
@@ -100,7 +101,7 @@ async function autoRetry() {
     actionMsg.value = msg;
     showConflict.value = false;
     if (trigger === "atvv_repair") {
-      actionMsg.value = "占用已清理，正在继续修复 ATVV…";
+      actionMsg.value = t("占用已清理，正在继续修复 ATVV…", "Cleared. Continuing ATVV repair…");
       try {
         const result = await invoke<{
           phase: string;
@@ -122,7 +123,10 @@ async function dismissConflict() {
   showConflict.value = false;
   if (trigger === "atvv_repair") {
     await emit("xiaomi-atvv-repair-cancelled", {
-      message: "已取消：未结束占用进程，ATVV 修复中止",
+      message: t(
+        "已取消：未结束占用进程，ATVV 修复中止",
+        "Cancelled: blocking process not ended, ATVV repair aborted"
+      ),
     });
   }
 }
@@ -188,10 +192,17 @@ onUnmounted(() => {
       >
         <h3 id="conflict-title">{{ triggerLabel(conflict.trigger) }}</h3>
         <p class="conflict-detail">
-          {{ conflict.detail || "检测到其它遥控桥接进程，可能占用端口或 BLE。" }}
+          {{
+            conflict.detail
+              ? tb(conflict.detail)
+              : t(
+                  "检测到其它遥控桥接进程，可能占用端口或 BLE。",
+                  "Another remote bridge process was detected; it may be holding ports or BLE."
+                )
+          }}
         </p>
         <p class="conflict-ports">
-          关注端口：PCM UDP {{ conflict.pcmPort }}、HID Tap TCP {{ conflict.hidTapPort }}
+          {{ t("关注端口：", "Ports: ") }}PCM UDP {{ conflict.pcmPort }}{{ t("、", ", ") }}HID Tap TCP {{ conflict.hidTapPort }}
         </p>
 
         <ul class="conflict-list">
@@ -199,7 +210,7 @@ onUnmounted(() => {
             <div class="conflict-item-main">
               <span class="conflict-name">{{ p.name }}</span>
               <span class="conflict-pid">PID {{ p.pid }}</span>
-              <span class="conflict-reasons">{{ p.reasons.join(" · ") }}</span>
+              <span class="conflict-reasons">{{ p.reasons.map((r) => tb(r)).join(" · ") }}</span>
             </div>
             <button
               type="button"
@@ -207,16 +218,21 @@ onUnmounted(() => {
               :disabled="busy"
               @click="killOne(p.pid)"
             >
-              结束此进程
+              {{ t("结束此进程", "End process") }}
             </button>
           </li>
         </ul>
 
         <p class="conflict-hint">
-          也可手动打开任务管理器（Ctrl+Shift+Esc）结束上列进程。仅允许结束已知桥接程序。
+          {{
+            t(
+              "也可手动打开任务管理器（Ctrl+Shift+Esc）结束上列进程。仅允许结束已知桥接程序。",
+              "You can also end these processes in Task Manager (Ctrl+Shift+Esc). Only known bridge programs can be ended."
+            )
+          }}
         </p>
 
-        <p v-if="actionMsg" class="conflict-msg">{{ actionMsg }}</p>
+        <p v-if="actionMsg" class="conflict-msg">{{ tb(actionMsg) }}</p>
 
         <div class="conflict-actions">
           <button
@@ -225,7 +241,7 @@ onUnmounted(() => {
             :disabled="busy"
             @click="dismissConflict"
           >
-            取消
+            {{ t("取消", "Cancel") }}
           </button>
           <button
             type="button"
@@ -233,7 +249,7 @@ onUnmounted(() => {
             :disabled="busy || !conflict.processes.length"
             @click="killAll"
           >
-            {{ busy ? "处理中…" : "关掉上列全部" }}
+            {{ busy ? t("处理中…", "Working…") : t("关掉上列全部", "End all listed") }}
           </button>
         </div>
       </div>

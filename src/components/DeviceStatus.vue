@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { BridgeStatus } from "../types";
+import { t, tb } from "../i18n";
 
 const props = defineProps<{
   status: BridgeStatus;
@@ -12,13 +13,13 @@ const emit = defineEmits<{
 
 function statusText(status: BridgeStatus): string {
   if (status.startsWith("Error|")) {
-    return status.slice("Error|".length) || "错误";
+    return tb(status.slice("Error|".length)) || t("错误", "Error");
   }
-  if (status.startsWith("Error")) return status;
+  if (status.startsWith("Error")) return tb(status);
   const map: Record<string, string> = {
-    Disconnected: "未连接",
-    Connecting: "连接中...",
-    Connected: "已连接",
+    Disconnected: t("未连接", "Disconnected"),
+    Connecting: t("连接中...", "Connecting..."),
+    Connected: t("已连接", "Connected"),
   };
   return map[status] || status;
 }
@@ -31,9 +32,9 @@ function statusClass(status: BridgeStatus): string {
 }
 
 function buttonText(status: BridgeStatus): string {
-  if (status === "Connected") return "断开连接";
-  if (status === "Connecting") return "连接中...";
-  return "连接设备";
+  if (status === "Connected") return t("断开连接", "Disconnect");
+  if (status === "Connecting") return t("连接中...", "Connecting...");
+  return t("连接设备", "Connect");
 }
 </script>
 
@@ -48,7 +49,7 @@ function buttonText(status: BridgeStatus): string {
       :disabled="loading || status === 'Connecting'"
       @click="emit('toggle')"
     >
-      {{ loading ? "处理中..." : buttonText(status) }}
+      {{ loading ? t("处理中...", "Working...") : buttonText(status) }}
     </button>
   </div>
 </template>

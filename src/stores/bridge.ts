@@ -2,6 +2,7 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import type { DeviceInfo, BridgeType, BridgeStatus } from "../types";
+import { t, tb } from "../i18n";
 
 export const useBridgeStore = defineStore("bridge", () => {
   const devices = ref<Record<BridgeType, DeviceInfo>>({
@@ -82,14 +83,14 @@ export const useBridgeStore = defineStore("bridge", () => {
 
   function statusLabel(status: BridgeStatus): string {
     if (status.startsWith("Error|")) {
-      return status.slice("Error|".length) || "错误";
+      return tb(status.slice("Error|".length)) || t("错误", "Error");
     }
-    if (status.startsWith("Error")) return status;
+    if (status.startsWith("Error")) return tb(status);
     const map: Record<string, string> = {
-      Disconnected: "未连接",
-      Connecting: "连接中...",
-      Connected: "已连接",
-      Error: "错误",
+      Disconnected: t("未连接", "Disconnected"),
+      Connecting: t("连接中...", "Connecting..."),
+      Connected: t("已连接", "Connected"),
+      Error: t("错误", "Error"),
     };
     return map[status] || status;
   }

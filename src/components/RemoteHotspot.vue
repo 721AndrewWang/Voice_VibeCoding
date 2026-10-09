@@ -3,6 +3,7 @@
  * 示意遥控器：对齐小米遥控器 2 Pro 实物比例与层次
  */
 import { ref } from "vue";
+import { t } from "../i18n";
 
 defineProps<{
   selectedId?: string | null;
@@ -26,14 +27,14 @@ defineExpose({ keyEl, rootRef });
 </script>
 
 <template>
-  <div ref="rootRef" class="remote-schematic" aria-label="小米遥控器示意">
+  <div ref="rootRef" class="remote-schematic" :aria-label="t('小米遥控器示意', 'Xiaomi remote diagram')">
     <div class="top-row">
       <div class="well well-sm">
         <button
           type="button"
           class="key-cap key-cap-sm"
           data-key-id="power"
-          aria-label="电源"
+          :aria-label="t('电源', 'Power')"
           :class="{
             active: selectedId === 'power',
             hover: hoverId === 'power',
@@ -65,7 +66,7 @@ defineExpose({ keyEl, rootRef });
           type="button"
           class="key-cap key-cap-sm"
           data-key-id="mic"
-          aria-label="语音"
+          :aria-label="t('语音', 'Voice')"
           :class="{
             active: selectedId === 'mic',
             hover: hoverId === 'mic',
@@ -103,7 +104,7 @@ defineExpose({ keyEl, rootRef });
           type="button"
           class="key-ok"
           data-key-id="ok"
-          aria-label="确定"
+          :aria-label="t('确定', 'OK')"
           :class="{ active: selectedId === 'ok', hover: hoverId === 'ok' }"
           @mouseenter="emit('hover', 'ok')"
           @mouseleave="emit('hover', null)"
@@ -113,7 +114,7 @@ defineExpose({ keyEl, rootRef });
           type="button"
           class="dpad-dir dpad-up"
           data-key-id="up"
-          aria-label="上"
+          :aria-label="t('上', 'Up')"
           :class="{ active: selectedId === 'up', hover: hoverId === 'up' }"
           @mouseenter="emit('hover', 'up')"
           @mouseleave="emit('hover', null)"
@@ -125,7 +126,7 @@ defineExpose({ keyEl, rootRef });
           type="button"
           class="dpad-dir dpad-left"
           data-key-id="left"
-          aria-label="左"
+          :aria-label="t('左', 'Left')"
           :class="{ active: selectedId === 'left', hover: hoverId === 'left' }"
           @mouseenter="emit('hover', 'left')"
           @mouseleave="emit('hover', null)"
@@ -137,7 +138,7 @@ defineExpose({ keyEl, rootRef });
           type="button"
           class="dpad-dir dpad-right"
           data-key-id="right"
-          aria-label="右"
+          :aria-label="t('右', 'Right')"
           :class="{ active: selectedId === 'right', hover: hoverId === 'right' }"
           @mouseenter="emit('hover', 'right')"
           @mouseleave="emit('hover', null)"
@@ -149,7 +150,7 @@ defineExpose({ keyEl, rootRef });
           type="button"
           class="dpad-dir dpad-down"
           data-key-id="down"
-          aria-label="下"
+          :aria-label="t('下', 'Down')"
           :class="{ active: selectedId === 'down', hover: hoverId === 'down' }"
           @mouseenter="emit('hover', 'down')"
           @mouseleave="emit('hover', null)"
@@ -167,7 +168,7 @@ defineExpose({ keyEl, rootRef });
             type="button"
             class="key-cap key-cap-md"
             data-key-id="back"
-            aria-label="返回"
+            :aria-label="t('返回', 'Back')"
             :class="{
               active: selectedId === 'back',
               hover: hoverId === 'back',
@@ -193,7 +194,7 @@ defineExpose({ keyEl, rootRef });
             type="button"
             class="key-cap key-cap-md"
             data-key-id="home"
-            aria-label="主页"
+            :aria-label="t('主页', 'Home')"
             :class="{
               active: selectedId === 'home',
               hover: hoverId === 'home',
@@ -226,7 +227,7 @@ defineExpose({ keyEl, rootRef });
             type="button"
             class="key-cap key-cap-md"
             data-key-id="menu"
-            aria-label="菜单"
+            :aria-label="t('菜单', 'Menu')"
             :class="{
               active: selectedId === 'menu',
               hover: hoverId === 'menu',
@@ -250,12 +251,12 @@ defineExpose({ keyEl, rootRef });
 
       <div class="lower-right">
         <div class="well well-vol">
-          <div class="vol-rocker" role="group" aria-label="音量">
+          <div class="vol-rocker" role="group" :aria-label="t('音量', 'Volume')">
             <button
               type="button"
               class="vol-half"
               data-key-id="volume_up"
-              aria-label="音量+"
+              :aria-label="t('音量+', 'Vol+')"
               :class="{
                 active: selectedId === 'volume_up',
                 hover: hoverId === 'volume_up',
@@ -280,7 +281,7 @@ defineExpose({ keyEl, rootRef });
               type="button"
               class="vol-half"
               data-key-id="volume_down"
-              aria-label="音量-"
+              :aria-label="t('音量-', 'Vol-')"
               :class="{
                 active: selectedId === 'volume_down',
                 hover: hoverId === 'volume_down',

@@ -3,7 +3,13 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { DeviceConfig, BridgeType, KeyAction } from "../types";
-import { MEDIA_PICK_KEYS, vkDisplayName } from "../utils/vkDisplay";
+import {
+  MEDIA_PICK_KEYS,
+  keyLabelDisplay,
+  remoteButtonLabel,
+  vkDisplayName,
+} from "../utils/vkDisplay";
+import { t, tb } from "../i18n";
 
 const props = defineProps<{
   bridgeType: BridgeType;
@@ -18,7 +24,7 @@ const emit = defineEmits<{
 const editingKey = ref<string | null>(null);
 const capturing = ref(false);
 const captureError = ref<string | null>(null);
-const captureStatus = ref("先点「录入」，再按目标单键或组合键");
+const captureStatus = ref(t("先点「录入」，再按目标单键或组合键", "Click \"Record\", then press a key or key combo"));
 const liveLabels = ref<string[]>([]);
 const listRef = ref<HTMLElement | null>(null);
 
@@ -87,7 +93,10 @@ onMounted(async () => {
       (event) => {
         liveLabels.value = event.payload?.labels || [];
         if (capturing.value && liveLabels.value.length) {
-          captureStatus.value = `正在录入：${liveLabels.value.join(" + ")} …`;
+          captureStatus.value = t(
+            `正在录入：${liveLabels.value.join(" + ")} …`,
+            `Recording: ${liveLabels.value.map(keyLabelDisplay).join(" + ")} …`
+          );
         }
       }
     );
@@ -148,9 +157,12 @@ async function onCaptured(keys: number[], labels: string[]) {
   const buttonId = editingKey.value;
   if (buttonId && keys?.length) {
     applyCapturedKeys(buttonId, keys);
-    captureStatus.value = `已录入 ${labels.join(" + ") || keys.map(vkDisplayName).join(" + ")}，已保存`;
+    captureStatus.value = t(
+      `已录入 ${labels.join(" + ") || keys.map(vkDisplayName).join(" + ")}，已保存`,
+      `Recorded ${labels.map(keyLabelDisplay).join(" + ") || keys.map(vkDisplayName).join(" + ")}, saved`
+    );
   } else {
-    captureStatus.value = "录入结束";
+    captureStatus.value = t("录入结束", "Recording finished");
   }
   try {
     await invoke("capture_shortcut_stop");
@@ -172,7 +184,7 @@ async function startEdit(buttonId: string) {
   capturing.value = true;
   liveLabels.value = [];
   applied = false;
-  captureStatus.value = "正在录入：请按目标键或组合键……";
+  captureStatus.value = t("正在录入：请按目标键或组合键……", "Recording: press a key or key combo…");
   try {
     await invoke("capture_shortcut_start");
     startPolling();
@@ -181,7 +193,7 @@ async function startEdit(buttonId: string) {
     editingKey.value = null;
     stopPolling();
     captureError.value = String(e);
-    captureStatus.value = "录入失败，可以重试";
+    captureStatus.value = t("录入失败，可以重试", "Recording failed, try again");
   }
 }
 
@@ -196,7 +208,7 @@ async function cancelCapture() {
   } catch {
     /* ignore */
   }
-  captureStatus.value = "已取消录入";
+  captureStatus.value = t("已取消录入", "Recording cancelled");
 }
 
 function applyCapturedKeys(buttonId: string, vks: number[]) {
@@ -237,7 +249,7 @@ function clearBinding(buttonId: string) {
     next.voice_hotkey = [];
   }
   emit("save", next);
-  captureStatus.value = "已清除绑定";
+  captureStatus.value = t("已清除绑定", "Binding cleared");
 }
 
 function vksToHotkeyNames(vks: number[]): string[] {
@@ -266,14 +278,14 @@ function vksToHotkeyNames(vks: number[]): string[] {
 }
 
 function actionLabel(action: KeyAction): string {
-  if (!action || action.type === "None") return "未绑定";
+  if (!action || action.type === "None") return t("未绑定", "Unbound");
   if (action.type === "SingleKey") return vkDisplayName(Number(action.value));
   if (action.type === "ComboKey") {
     const arr = Array.isArray(action.value) ? action.value : [];
     return arr.map((v) => vkDisplayName(Number(v))).join(" + ");
   }
-  if (action.type === "TextInput") return `文字: ${action.value}`;
-  if (action.type === "LaunchApp") return `启动: ${action.value}`;
+  if (action.type === "TextInput") return t(`文字: ${action.value}`, `Text: ${action.value}`);
+  if (action.type === "LaunchApp") return t(`启动: ${action.value}`, `Launch: ${action.value}`);
   return "—";
 }
 
@@ -286,9 +298,9 @@ function pickMediaKey(vk: number) {
 <template>
   <div class="key-editor">
     <p class="capture-hint">{{ captureStatus }}</p>
-    <p v-if="captureError" class="capture-error">{{ captureError }}</p>
+    <p v-if="captureError" class="capture-error">{{ tb(captureError) }}</p>
     <p v-if="!buttons.length" class="capture-error">
-      没有可映射的按键（button_aliases 为空）
+      {{ t("没有可映射的按键（button_aliases 为空）", "No mappable buttons (button_aliases is empty)") }}
     </p>
 
     <div class="key-list" ref="listRef">
@@ -298,7 +310,7 @@ function pickMediaKey(vk: number) {
         :data-button-id="btn.id"
         :class="['key-row', { editing: editingKey === btn.id }]"
       >
-        <span class="key-name">{{ btn.label }}</span>
+        <span class="key-name">{{ remoteButtonLabel(btn.label) }}</span>
         <div class="key-action-area">
           <span :class="['key-action', { unbound: btn.action.type === 'None' }]">
             {{ actionLabel(btn.action) }}
@@ -311,8 +323,8 @@ function pickMediaKey(vk: number) {
             >
               {{
                 editingKey === btn.id && capturing
-                  ? "取消录入"
-                  : "按真实键盘录入"
+                  ? t("取消录入", "Cancel")
+                  : t("按真实键盘录入", "Record from keyboard")
               }}
             </button>
             <button
@@ -330,22 +342,27 @@ function pickMediaKey(vk: number) {
 
     <div v-if="capturing" class="capture-overlay">
       <div class="capture-box">
-        <p class="capture-title">正在录入</p>
+        <p class="capture-title">{{ t("正在录入", "Recording") }}</p>
         <p
           class="capture-live"
           :class="{ 'capture-hint-blink': !liveLabels.length }"
         >
           {{
             liveLabels.length
-              ? liveLabels.join(" + ") + " …"
-              : "请按目标键或组合键"
+              ? liveLabels.map(keyLabelDisplay).join(" + ") + " …"
+              : t("请按目标键或组合键", "Press a key or key combo")
           }}
         </p>
         <p class="capture-note">
-          松开后自动完成并保存。媒体键若录不上，可点下方按钮。
+          {{
+            t(
+              "松开后自动完成并保存。媒体键若录不上，可点下方按钮。",
+              "Saves automatically on release. If a media key won't record, use the buttons below."
+            )
+          }}
         </p>
         <div class="media-pick">
-          <span class="media-pick-label">设置为：</span>
+          <span class="media-pick-label">{{ t("设置为：", "Set to:") }}</span>
           <button
             v-for="k in MEDIA_PICK_KEYS"
             :key="k.vk"
@@ -356,7 +373,7 @@ function pickMediaKey(vk: number) {
             {{ k.label }}
           </button>
         </div>
-        <button class="btn btn-primary" @click="cancelCapture">取消录入</button>
+        <button class="btn btn-primary" @click="cancelCapture">{{ t("取消录入", "Cancel recording") }}</button>
       </div>
     </div>
   </div>

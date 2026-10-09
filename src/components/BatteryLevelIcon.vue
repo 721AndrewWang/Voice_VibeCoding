@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { t } from "../i18n";
 
 const props = defineProps<{
   level: number | null;
@@ -23,8 +24,8 @@ const tone = computed(() => {
 });
 
 const ariaLabel = computed(() => {
-  if (clampedLevel.value == null) return "电量未知";
-  return `电量 ${clampedLevel.value}%`;
+  if (clampedLevel.value == null) return t("电量未知", "Battery unknown");
+  return t(`电量 ${clampedLevel.value}%`, `Battery ${clampedLevel.value}%`);
 });
 </script>
 

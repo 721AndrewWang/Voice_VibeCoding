@@ -4,6 +4,7 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openUrl } from "@tauri-apps/plugin-shell";
 import type { AppUpdateDownloadProgress, AppUpdateInfo } from "../types";
+import { t } from "../i18n";
 import {
   APP_UPDATE_AUTO_OPEN_DELAY_MS,
   shouldAutoOpenForSession as sessionAllowsAutoOpen,
@@ -67,12 +68,12 @@ export const useAppUpdateStore = defineStore("appUpdate", () => {
 
   const progressLabel = computed(() => {
     const p = downloadProgress.value;
-    if (!p) return "准备下载…";
+    if (!p) return t("准备下载…", "Preparing download…");
     const downloaded = formatBytes(p.downloaded);
     if (p.total && p.total > 0) {
       return `${downloaded} / ${formatBytes(p.total)}${p.percent != null ? `（${Math.round(p.percent)}%）` : ""}`;
     }
-    return `已下载 ${downloaded}`;
+    return t(`已下载 ${downloaded}`, `${downloaded} downloaded`);
   });
 
   function clearAutoOpenTimer() {
@@ -253,7 +254,10 @@ export const useAppUpdateStore = defineStore("appUpdate", () => {
       unlistenComplete = await listen<{ path: string }>("app-update-download-complete", () => {
         downloadPhase.value = "complete";
         downloadMessage.value =
-          "已开始静默升级：本程序即将退出，随后显示升级进度窗（卸旧装新、保留配置），完成后自动打开新版。";
+          t(
+            "已开始静默升级：本程序即将退出，随后显示升级进度窗（卸旧装新、保留配置），完成后自动打开新版。",
+            "Silent upgrade started: the app will quit, show an upgrade progress window (replace old version, keep settings), then open the new version."
+          );
       });
     } catch (e) {
       console.warn("listen app-update-download-complete failed:", e);
@@ -262,7 +266,7 @@ export const useAppUpdateStore = defineStore("appUpdate", () => {
     try {
       unlistenError = await listen<{ message: string }>("app-update-download-error", (event) => {
         downloadPhase.value = "error";
-        downloadMessage.value = event.payload?.message || "下载失败";
+        downloadMessage.value = event.payload?.message || t("下载失败", "Download failed");
       });
     } catch (e) {
       console.warn("listen app-update-download-error failed:", e);

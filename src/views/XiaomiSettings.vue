@@ -16,6 +16,7 @@ import { cableZoneForLevel } from "../utils/cableVolMeter";
 import wechatImeHotkeysImg from "../assets/guides/wechat-ime-hotkeysV3.png";
 import doubaoImeHotkeysImg from "../assets/guides/doubao.png";
 import { vkDisplayName } from "../utils/vkDisplay";
+import { t, tb } from "../i18n";
 import {
   applyImePresetConfig,
   getPresetsForTab,
@@ -69,11 +70,11 @@ const showWinuhidChoice = ref(false);
 const voiceChoiceMsg = ref("");
 type VoiceRepairTab = "repair" | "guide" | "faq";
 const voiceRepairTab = ref<VoiceRepairTab>("repair");
-const voiceRepairTabs: { id: VoiceRepairTab; label: string }[] = [
-  { id: "repair", label: "1 修复" },
-  { id: "guide", label: "2 说明" },
-  { id: "faq", label: "3 常见问题" },
-];
+const voiceRepairTabs = computed<{ id: VoiceRepairTab; label: string }[]>(() => [
+  { id: "repair", label: t("1 修复", "1 Repair") },
+  { id: "guide", label: t("2 说明", "2 Guide") },
+  { id: "faq", label: t("3 常见问题", "3 FAQ") },
+]);
 const winuhidChoiceMsg = ref("");
 type WinuhidDownloadPhase = "idle" | "downloading" | "complete" | "error";
 type CableDownloadPhase = "idle" | "downloading" | "complete" | "error";
@@ -145,11 +146,11 @@ let mappingFlashClearTimer: ReturnType<typeof setTimeout> | null = null;
 const bleSignalLabel = computed(() => {
   switch (voiceMeter.value.bleState) {
     case "receiving":
-      return "接收中";
+      return t("接收中", "Receiving");
     case "session":
-      return "语音会话";
+      return t("语音会话", "Voice session");
     default:
-      return "无信号";
+      return t("无信号", "No signal");
   }
 });
 
@@ -204,13 +205,13 @@ const cableVolHint = computed(() => {
   if (!voiceMeter.value.cableActive) return "\u00a0";
   switch (cableVolZone.value) {
     case "low":
-      return "偏低";
+      return t("偏低", "Low");
     case "high":
-      return "偏高";
+      return t("偏高", "High");
     case "ok":
-      return "正常";
+      return t("正常", "OK");
     default:
-      return "送声";
+      return t("送声", "Sending");
   }
 });
 
@@ -710,14 +711,14 @@ async function persistGainSettings() {
     const ok = await configStore.saveConfig(type, { ...config.value! });
     if (seq !== gainSaveSeq) return;
     if (ok) {
-      showGainToast("增益新数值已生效。");
+      showGainToast(t("增益新数值已生效。", "Gain updated."));
       return;
     }
-    showGainToast("增益值更新失败，请调整数值重试。", true);
+    showGainToast(t("增益值更新失败，请调整数值重试。", "Couldn't update gain. Adjust the value and try again."), true);
     await configStore.loadConfig(type);
     if (seq !== gainSaveSeq) return;
     if (configStore.loadStates[type] !== "ready") {
-      showGainToast("增益值更新失败，请刷新页面后重试。", true);
+      showGainToast(t("增益值更新失败，请刷新页面后重试。", "Couldn't update gain. Refresh the page and try again."), true);
     }
   });
 }
@@ -730,11 +731,11 @@ async function persistVoiceSettings() {
     const ok = await configStore.saveConfig(type, { ...config.value! });
     if (seq !== voiceSettingsSaveSeq) return;
     if (ok) return;
-    prependLog("语音设置保存失败，请重试");
+    prependLog("语音设置保存失败，请重试", "Couldn't save voice settings. Try again.");
     await configStore.loadConfig(type);
     if (seq !== voiceSettingsSaveSeq) return;
     if (configStore.loadStates[type] !== "ready") {
-      prependLog("配置重新加载失败，请刷新页面");
+      prependLog("配置重新加载失败，请刷新页面", "Couldn't reload settings. Refresh the page.");
     }
   });
 }
@@ -764,7 +765,7 @@ async function applyImePreset(presetId: ImePresetId) {
   config.value.voice_release_behavior = next.voice_release_behavior;
   const ok = await saveXiaomiConfig(next);
   if (!ok) {
-    prependLog("预设应用失败，请重试");
+    prependLog("预设应用失败，请重试", "Couldn't apply preset. Try again.");
     await configStore.loadConfig(type);
     return;
   }
@@ -777,7 +778,7 @@ async function applyImePreset(presetId: ImePresetId) {
 
 async function onKeyMappingSave(cfg: DeviceConfig) {
   const ok = await saveXiaomiConfig(cfg);
-  if (!ok) prependLog("按键映射保存失败，请重试");
+  if (!ok) prependLog("按键映射保存失败，请重试", "Couldn't save key mapping. Try again.");
 }
 
 let hostPollTimer: ReturnType<typeof setInterval> | null = null;
@@ -793,6 +794,7 @@ interface LogEntry {
   id: number;
   time: string;
   text: string;
+  en?: string;
 }
 
 const logs = ref<LogEntry[]>([]);
@@ -813,11 +815,13 @@ function formatTime(d = new Date()): string {
   return d.toLocaleTimeString("zh-CN", { hour12: false });
 }
 
-function prependLog(text: string) {
+/** 前端自己写的日志传中英两份（切换语言时跟着变）；后端来的只传原文，显示时用 tb() 翻译 */
+function prependLog(text: string, en?: string) {
   logs.value.unshift({
     id: ++logSeq,
     time: formatTime(),
     text,
+    en,
   });
   if (logs.value.length > 80) {
     logs.value.length = 80;
@@ -835,25 +839,25 @@ function resolveKeyLabel(buttonId: string): string {
   const aliases = config.value?.button_aliases;
   if (aliases && aliases[buttonId]) return aliases[buttonId];
   const fallback: Record<string, string> = {
-    power: "电源",
-    volume_up: "音量+",
-    volume_down: "音量-",
-    up: "上",
-    down: "下",
-    left: "左",
-    right: "右",
-    dpad_up: "上",
-    dpad_down: "下",
-    dpad_left: "左",
-    dpad_right: "右",
-    ok: "确认",
-    back: "返回",
-    home: "主页",
-    menu: "菜单",
-    mic: "语音",
-    voice: "语音",
-    volume_mute: "静音",
-    mute: "静音",
+    power: t("电源", "Power"),
+    volume_up: t("音量+", "Vol+"),
+    volume_down: t("音量-", "Vol-"),
+    up: t("上", "Up"),
+    down: t("下", "Down"),
+    left: t("左", "Left"),
+    right: t("右", "Right"),
+    dpad_up: t("上", "Up"),
+    dpad_down: t("下", "Down"),
+    dpad_left: t("左", "Left"),
+    dpad_right: t("右", "Right"),
+    ok: t("确认", "OK"),
+    back: t("返回", "Back"),
+    home: t("主页", "Home"),
+    menu: t("菜单", "Menu"),
+    mic: t("语音", "Voice"),
+    voice: t("语音", "Voice"),
+    volume_mute: t("静音", "Mute"),
+    mute: t("静音", "Mute"),
     tv: "TV",
   };
   return fallback[buttonId] || buttonId;
@@ -886,7 +890,7 @@ function bindingAliases(buttonId: string): string[] {
 
 function resolveMappedActionLabel(buttonId: string): string {
   const bindings = config.value?.button_bindings;
-  if (!bindings) return "未绑定";
+  if (!bindings) return t("未绑定", "Unbound");
   let action = bindings[buttonId];
   if (!action) {
     for (const alt of bindingAliases(buttonId)) {
@@ -896,14 +900,14 @@ function resolveMappedActionLabel(buttonId: string): string {
       }
     }
   }
-  if (!action || action.type === "None") return "未绑定";
+  if (!action || action.type === "None") return t("未绑定", "Unbound");
   if (action.type === "SingleKey") return vkDisplayName(Number(action.value));
   if (action.type === "ComboKey") {
     const arr = Array.isArray(action.value) ? action.value : [];
     return arr.map((v) => vkDisplayName(Number(v))).join(" + ");
   }
-  if (action.type === "TextInput") return `文字: ${action.value}`;
-  if (action.type === "LaunchApp") return `启动: ${action.value}`;
+  if (action.type === "TextInput") return t(`文字: ${action.value}`, `Text: ${action.value}`);
+  if (action.type === "LaunchApp") return t(`启动: ${action.value}`, `Launch: ${action.value}`);
   return "—";
 }
 
@@ -912,7 +916,7 @@ function formatKeyEventLine(
   remoteLabel: string,
   mappedLabel: string | null,
 ): string {
-  const phaseLabel = phase === "up" ? "抬起" : "按下";
+  const phaseLabel = phase === "up" ? t("抬起", "Released") : t("按下", "Pressed");
   if (mappedLabel) {
     return `${phaseLabel} ${remoteLabel} → ${mappedLabel}`;
   }
@@ -1033,9 +1037,9 @@ async function openLogs() {
     logPath.value = result.path || "";
     logText.value = result.content?.trim()
       ? result.content
-      : "（暂无日志）";
+      : t("（暂无日志）", "(No logs yet)");
   } catch (e) {
-    logText.value = `读取日志失败: ${e}`;
+    logText.value = t(`读取日志失败: ${e}`, `Couldn't read log: ${tb(String(e))}`);
     logPath.value = "";
   } finally {
     logLoading.value = false;
@@ -1045,12 +1049,12 @@ async function openLogs() {
 async function copyLog() {
   try {
     await navigator.clipboard.writeText(logText.value || "");
-    logCopyHint.value = "已复制";
+    logCopyHint.value = t("已复制", "Copied");
     setTimeout(() => {
       logCopyHint.value = "";
     }, 1500);
   } catch (e) {
-    logCopyHint.value = `复制失败: ${e}`;
+    logCopyHint.value = t(`复制失败: ${e}`, `Copy failed: ${tb(String(e))}`);
   }
 }
 
@@ -1058,7 +1062,7 @@ async function openLogExternally() {
   try {
     await invoke("open_app_log");
   } catch (e) {
-    logCopyHint.value = `打开失败: ${e}`;
+    logCopyHint.value = t(`打开失败: ${e}`, `Couldn't open: ${tb(String(e))}`);
   }
 }
 
@@ -1070,9 +1074,9 @@ async function clearLog() {
     await invoke("clear_app_log");
     const result = await invoke<{ path: string; content: string }>("get_app_log");
     logPath.value = result.path || "";
-    logText.value = result.content?.trim() ? result.content : "（暂无日志）";
+    logText.value = result.content?.trim() ? result.content : t("（暂无日志）", "(No logs yet)");
   } catch (e) {
-    logText.value = `清空日志失败: ${e}`;
+    logText.value = t(`清空日志失败: ${e}`, `Couldn't clear log: ${tb(String(e))}`);
   } finally {
     logLoading.value = false;
   }
@@ -1120,7 +1124,7 @@ async function runVoiceAutoRepair() {
     applyVoiceEnvResult(result);
     await refreshHost();
   } catch (e) {
-    const msg = `修复虚拟声卡失败: ${e}`;
+    const msg = t(`修复虚拟声卡失败: ${e}`, `Sound card repair failed: ${tb(String(e))}`);
     prependLog(msg);
     host.value = { ...host.value, detail: msg, tone: "error" };
     voiceChoiceMsg.value = msg;
@@ -1152,7 +1156,7 @@ async function chooseVoiceSource(
     applyVoiceEnvResult(result);
     await refreshHost();
   } catch (e) {
-    const msg = `语音修复失败: ${e}`;
+    const msg = t(`语音修复失败: ${e}`, `Voice repair failed: ${tb(String(e))}`);
     prependLog(msg);
     host.value = { ...host.value, detail: msg, tone: "error" };
     voiceChoiceMsg.value = msg;
@@ -1214,7 +1218,7 @@ async function chooseWinuhidSource(
     applyWinuhidResult(result);
     await refreshHost();
   } catch (e) {
-    const msg = `虚拟键盘处理失败: ${e}`;
+    const msg = t(`虚拟键盘处理失败: ${e}`, `Virtual keyboard repair failed: ${tb(String(e))}`);
     prependLog(msg);
     host.value = { ...host.value, detail: msg, tone: "error" };
     winuhidChoiceMsg.value = msg;
@@ -1232,13 +1236,13 @@ function formatDownloadBytes(n: number): string {
 
 const winuhidDownloadProgressLabel = computed(() => {
   const p = winuhidDownloadProgress.value;
-  if (!p) return "准备下载…";
+  if (!p) return t("准备下载…", "Preparing download…");
   const downloaded = formatDownloadBytes(p.downloaded);
   if (p.total && p.total > 0) {
-    const pct = p.percent != null ? `（${Math.round(p.percent)}%）` : "";
+    const pct = p.percent != null ? t(`（${Math.round(p.percent)}%）`, ` (${Math.round(p.percent)}%)`) : "";
     return `${downloaded} / ${formatDownloadBytes(p.total)}${pct}`;
   }
-  return `已下载 ${downloaded}`;
+  return t(`已下载 ${downloaded}`, `Downloaded ${downloaded}`);
 });
 
 function winuhidDownloadProgressWidth(): string {
@@ -1262,13 +1266,13 @@ function resetCableDownloadState() {
 
 const cableDownloadProgressLabel = computed(() => {
   const p = cableDownloadProgress.value;
-  if (!p) return "准备下载…";
+  if (!p) return t("准备下载…", "Preparing download…");
   const downloaded = formatDownloadBytes(p.downloaded);
   if (p.total && p.total > 0) {
-    const pct = p.percent != null ? `（${Math.round(p.percent)}%）` : "";
+    const pct = p.percent != null ? t(`（${Math.round(p.percent)}%）`, ` (${Math.round(p.percent)}%)`) : "";
     return `${downloaded} / ${formatDownloadBytes(p.total)}${pct}`;
   }
-  return `已下载 ${downloaded}`;
+  return t(`已下载 ${downloaded}`, `Downloaded ${downloaded}`);
 });
 
 function cableDownloadProgressWidth(): string {
@@ -1294,8 +1298,8 @@ async function startCableZipDownload() {
 
   const dest = await save({
     defaultPath: cableZipDefaultName.value,
-    filters: [{ name: "ZIP 压缩包", extensions: ["zip"] }],
-    title: "保存 VB-CABLE 驱动包",
+    filters: [{ name: t("ZIP 压缩包", "ZIP archive"), extensions: ["zip"] }],
+    title: t("保存 VB-CABLE 驱动包", "Save VB-CABLE driver package"),
   });
   if (!dest) return;
 
@@ -1308,7 +1312,7 @@ async function startCableZipDownload() {
   } catch (e) {
     cableDownloadPhase.value = "error";
     cableDownloadMessage.value = String(e);
-    prependLog(`VB-CABLE 驱动包下载失败: ${e}`);
+    prependLog(`VB-CABLE 驱动包下载失败: ${e}`, `VB-CABLE driver download failed: ${tb(String(e))}`);
   }
 }
 
@@ -1321,7 +1325,7 @@ async function stopCableZipDownload() {
     console.warn("cancel vbcable download failed:", e);
   }
   resetCableDownloadState();
-  prependLog("已停止 VB-CABLE 驱动包下载");
+  prependLog("已停止 VB-CABLE 驱动包下载", "Stopped VB-CABLE driver download");
 }
 
 /** 点「修复虚拟声卡」先弹出选项，不直接跑修复（便于测下载等路径） */
@@ -1329,7 +1333,7 @@ function openVoiceRepairChoice() {
   showVoiceReboot.value = false;
   resetCableDownloadState();
   voiceRepairTab.value = "repair";
-  voiceChoiceMsg.value = "请选择检测 / 安装方式：";
+  voiceChoiceMsg.value = t("请选择检测 / 安装方式：", "Choose how to check / install:");
   showVoiceChoice.value = true;
   void refreshCableZipName();
 }
@@ -1350,8 +1354,8 @@ async function startWinuhidZipDownload() {
 
   const dest = await save({
     defaultPath: winuhidZipDefaultName.value,
-    filters: [{ name: "ZIP 压缩包", extensions: ["zip"] }],
-    title: "保存 WinUHid 驱动包",
+    filters: [{ name: t("ZIP 压缩包", "ZIP archive"), extensions: ["zip"] }],
+    title: t("保存 WinUHid 驱动包", "Save WinUHid driver package"),
   });
   if (!dest) return;
 
@@ -1364,7 +1368,7 @@ async function startWinuhidZipDownload() {
   } catch (e) {
     winuhidDownloadPhase.value = "error";
     winuhidDownloadMessage.value = String(e);
-    prependLog(`WinUHid 驱动包下载失败: ${e}`);
+    prependLog(`WinUHid 驱动包下载失败: ${e}`, `WinUHid driver download failed: ${tb(String(e))}`);
   }
 }
 
@@ -1376,18 +1380,18 @@ async function stopWinuhidZipDownload() {
     console.warn("cancel winuhid download failed:", e);
   }
   resetWinuhidDownloadState();
-  prependLog("已停止 WinUHid 驱动包下载");
+  prependLog("已停止 WinUHid 驱动包下载", "Stopped WinUHid driver download");
 }
 
 function openWinuhidRepairChoice() {
   resetWinuhidDownloadState();
-  winuhidChoiceMsg.value = "请选择修复或安装方式：";
+  winuhidChoiceMsg.value = t("请选择修复或安装方式：", "Choose how to repair or install:");
   showWinuhidChoice.value = true;
   void refreshWinuhidZipName();
 }
 
 onMounted(async () => {
-  prependLog("日志区准备就绪");
+  prependLog("日志区准备就绪", "Log ready");
   await Promise.all([
     bridge.refreshStatus(type),
     configStore.loadConfig(type),
@@ -1420,7 +1424,7 @@ onMounted(async () => {
         return;
       }
       const id = p.buttonId || "unknown";
-      const label = p.label || resolveKeyLabel(id);
+      const label = p.label ? tb(p.label) : resolveKeyLabel(id);
       const phase: "down" | "up" = p.phase === "up" ? "up" : "down";
       const isVoice = id === "mic" || id === "voice";
       const voiceMapOn = config.value?.voice_shortcut_enabled !== false;
@@ -1466,7 +1470,7 @@ onMounted(async () => {
         host.value = {
           ...host.value,
           status_text: "ATVV 修复已取消",
-          detail: event.payload?.message || "已取消修复",
+          detail: event.payload?.message || t("已取消修复", "Repair cancelled"),
           tone: "warn",
         };
         atvvRepairing.value = false;
@@ -1496,8 +1500,14 @@ onMounted(async () => {
       (event) => {
         const path = event.payload?.path || "";
         const msg = path
-          ? `WinUHid 驱动包已保存到：${path}。请解压后阅读「安装说明.txt」，双击 Run-Install.cmd 安装。`
-          : "WinUHid 驱动包下载完成。请解压后阅读「安装说明.txt」安装。";
+          ? t(
+              `WinUHid 驱动包已保存到：${path}。请解压后阅读「安装说明.txt」，双击 Run-Install.cmd 安装。`,
+              `WinUHid driver package saved to: ${path}. Unzip it, read “安装说明.txt”, then double-click Run-Install.cmd to install.`,
+            )
+          : t(
+              "WinUHid 驱动包下载完成。请解压后阅读「安装说明.txt」安装。",
+              "WinUHid driver package downloaded. Unzip it and follow “安装说明.txt” to install.",
+            );
         prependLog(msg);
         resetWinuhidDownloadState();
       },
@@ -1510,7 +1520,7 @@ onMounted(async () => {
     unlistenWinuhidError = await listen<{ message: string }>(
       "winuhid-download-error",
       (event) => {
-        const msg = event.payload?.message || "下载失败";
+        const msg = event.payload?.message || t("下载失败", "Download failed");
         if (msg.includes("已取消")) {
           resetWinuhidDownloadState();
           return;
@@ -1518,7 +1528,7 @@ onMounted(async () => {
         winuhidDownloadPhase.value = "error";
         winuhidDownloadProgress.value = null;
         winuhidDownloadMessage.value = msg;
-        prependLog(`WinUHid 驱动包下载失败: ${msg}`);
+        prependLog(`WinUHid 驱动包下载失败: ${msg}`, `WinUHid driver download failed: ${tb(msg)}`);
       },
     );
   } catch (e) {
@@ -1545,8 +1555,14 @@ onMounted(async () => {
       (event) => {
         const path = event.payload?.path || "";
         const msg = path
-          ? `VB-CABLE 驱动包已保存到：${path}。请解压后按说明安装，完成后点「修复虚拟声卡」→「自动修复」。`
-          : "VB-CABLE 驱动包下载完成。请解压安装后点「修复虚拟声卡」→「自动修复」。";
+          ? t(
+              `VB-CABLE 驱动包已保存到：${path}。请解压后按说明安装，完成后点「修复虚拟声卡」→「自动修复」。`,
+              `VB-CABLE driver package saved to: ${path}. Unzip and install it, then click “Repair sound card” → “Auto repair”.`,
+            )
+          : t(
+              "VB-CABLE 驱动包下载完成。请解压安装后点「修复虚拟声卡」→「自动修复」。",
+              "VB-CABLE driver package downloaded. Unzip and install it, then click “Repair sound card” → “Auto repair”.",
+            );
         prependLog(msg);
         resetCableDownloadState();
       },
@@ -1559,7 +1575,7 @@ onMounted(async () => {
     unlistenCableError = await listen<{ message: string }>(
       "vbcable-download-error",
       (event) => {
-        const msg = event.payload?.message || "下载失败";
+        const msg = event.payload?.message || t("下载失败", "Download failed");
         if (msg.includes("已取消")) {
           resetCableDownloadState();
           return;
@@ -1567,7 +1583,7 @@ onMounted(async () => {
         cableDownloadPhase.value = "error";
         cableDownloadProgress.value = null;
         cableDownloadMessage.value = msg;
-        prependLog(`VB-CABLE 驱动包下载失败: ${msg}`);
+        prependLog(`VB-CABLE 驱动包下载失败: ${msg}`, `VB-CABLE driver download failed: ${tb(msg)}`);
       },
     );
   } catch (e) {
@@ -1614,11 +1630,11 @@ watch(
     if (status === prev) return;
     if (status === "Connected") {
       const name = device.value.device_name || "MI RC";
-      prependLog(`已连接 ${name}`);
+      prependLog(`已连接 ${name}`, `Connected to ${name}`);
     } else if (status === "Connecting") {
-      prependLog("正在连接...");
+      prependLog("正在连接...", "Connecting...");
     } else if (status === "Disconnected") {
-      prependLog("已断开");
+      prependLog("已断开", "Disconnected");
     } else if (status.startsWith("Error")) {
       prependLog(bridge.statusLabel(status));
     }
@@ -1636,7 +1652,12 @@ function toggleConnection() {
 async function retryLoadConfig() {
   await configStore.loadConfig(type);
   if (configStore.loadErrors[type]) {
-    prependLog(`配置加载失败: ${configStore.loadErrors[type]}`);
+    prependLog(
+      t(
+        `配置加载失败: ${configStore.loadErrors[type]}`,
+        `Couldn't load settings: ${tb(configStore.loadErrors[type])}`,
+      ),
+    );
   }
 }
 
@@ -1646,7 +1667,7 @@ async function retryLoadConfig() {
   <div class="page">
     <header class="page-header">
       <div class="title-row">
-        <h2>小米遥控器 2 Pro</h2>
+        <h2>{{ t("小米遥控器 2 Pro", "Xiaomi Remote 2 Pro") }}</h2>
       </div>
       <DeviceStatus
         :status="device.status"
@@ -1660,25 +1681,25 @@ async function retryLoadConfig() {
         <div class="device-info-row">
           <div class="device-info-col">
             <div class="info-line">
-              <span class="info-label">设备名称</span>
+              <span class="info-label">{{ t("设备名称", "Device name") }}</span>
               <span class="info-value">{{ device.device_name || "—" }}</span>
             </div>
             <div class="info-line">
-              <span class="info-label">蓝牙地址</span>
+              <span class="info-label">{{ t("蓝牙地址", "Bluetooth address") }}</span>
               <span class="info-value">{{ device.device_address || "—" }}</span>
             </div>
           </div>
           <div class="device-info-col">
             <div class="info-line">
-              <span class="info-label">剩余电量</span>
+              <span class="info-label">{{ t("剩余电量", "Battery") }}</span>
               <span class="info-value info-value-battery">
                 <BatteryLevelIcon :level="device.battery_level" />
                 {{ device.battery_level != null ? device.battery_level + "%" : "—" }}
               </span>
             </div>
             <div class="info-line">
-              <span class="info-label">连接方式</span>
-              <span class="info-value">蓝牙 BLE</span>
+              <span class="info-label">{{ t("连接方式", "Connection") }}</span>
+              <span class="info-value">{{ t("蓝牙 BLE", "Bluetooth BLE") }}</span>
             </div>
           </div>
           <div
@@ -1687,14 +1708,14 @@ async function retryLoadConfig() {
               'is-session': voiceMeter.bleState === 'session',
               'is-receiving': voiceMeter.bleState === 'receiving',
             }"
-            title="遥控器 BLE 解码后的 PCM"
+            :title="t('遥控器 BLE 解码后的 PCM', 'PCM decoded from the remote’s BLE audio')"
           >
             <div class="audio-label-row">
-              <span class="info-label">音频信号</span>
+              <span class="info-label">{{ t("音频信号", "Audio signal") }}</span>
               <span
                 v-if="showAtvvFailLabel"
                 class="audio-atvv-fail"
-              >ATVV 未连接</span>
+              >{{ t("ATVV 未连接", "ATVV not connected") }}</span>
               <span
                 v-else-if="voiceMeter.bleState !== 'idle'"
                 class="audio-state"
@@ -1713,12 +1734,12 @@ async function retryLoadConfig() {
               `cable-zone-${cableVolZone}`,
               { 'is-active': cableReady && voiceMeter.cableActive },
             ]"
-            title="经增益处理后送往虚拟声卡的实时电平（dBFS，0 为数字满幅）"
+            :title="t('经增益处理后送往虚拟声卡的实时电平（dBFS，0 为数字满幅）', 'Live level sent to the virtual sound card after gain (dBFS, 0 = digital full scale)')"
           >
             <div class="audio-label-row cable-vol-label-row">
-              <span v-if="cableReady" class="info-label">{{ isLinux ? "虚拟麦克风音量" : "虚拟声卡音量" }}</span>
-              <span v-else-if="linuxAsrMode" class="info-label">虚拟麦克风（本地识别模式不使用）</span>
-              <span v-else class="cable-vol-fail">{{ isLinux ? "虚拟麦克风未就绪" : "虚拟声卡未就绪" }}</span>
+              <span v-if="cableReady" class="info-label">{{ isLinux ? t("虚拟麦克风音量", "Virtual mic level") : t("虚拟声卡音量", "Sound card level") }}</span>
+              <span v-else-if="linuxAsrMode" class="info-label">{{ t("虚拟麦克风（本地识别模式不使用）", "Virtual mic (unused)") }}</span>
+              <span v-else class="cable-vol-fail">{{ isLinux ? t("虚拟麦克风未就绪", "Virtual mic not ready") : t("虚拟声卡未就绪", "Sound card not ready") }}</span>
               <span
                 class="cable-vol-state"
                 :class="{
@@ -1742,7 +1763,7 @@ async function retryLoadConfig() {
         </div>
 
         <section class="card host-card">
-          <div class="host-status-row" role="list" aria-label="运行状态">
+          <div class="host-status-row" role="list" :aria-label="t('运行状态', 'Runtime status')">
             <div
               v-for="item in host.items"
               :key="item.id"
@@ -1754,13 +1775,13 @@ async function retryLoadConfig() {
                 :class="itemToneClass(item.tone)"
                 aria-hidden="true"
               />
-              <span class="host-item-label">{{ item.label }}</span>
+              <span class="host-item-label">{{ tb(item.label) }}</span>
               <span class="host-item-state" :class="itemToneClass(item.tone)">
-                {{ item.state_label }}
+                {{ tb(item.state_label) }}
               </span>
             </div>
           </div>
-          <p v-if="host.detail" class="host-detail">{{ host.detail }}</p>
+          <p v-if="host.detail" class="host-detail">{{ tb(host.detail) }}</p>
           <div class="host-actions">
             <template v-if="!isLinux">
             <div class="host-action-group">
@@ -1770,14 +1791,14 @@ async function retryLoadConfig() {
                 :disabled="voiceRepairing || restarting"
                 @click="voiceDetectAndRepair"
               >
-                {{ voiceRepairing ? "处理中..." : "修复虚拟声卡" }}
+                {{ voiceRepairing ? t("处理中...", "Working...") : t("修复虚拟声卡", "Repair sound card") }}
               </button>
               <button
                 ref="repairInfoBtn"
                 type="button"
                 class="title-info"
                 :aria-expanded="showRepairTip"
-                aria-label="修复虚拟声卡说明"
+                :aria-label="t('修复虚拟声卡说明', 'About Repair sound card')"
                 @mouseenter="openRepairTip"
                 @mouseleave="scheduleCloseRepairTip"
                 @focus="openRepairTip"
@@ -1797,26 +1818,26 @@ async function retryLoadConfig() {
                   @mouseleave="scheduleCloseRepairTip"
                 >
                   <p class="tip-lead">
-                    用来检查并修好电脑上的语音通路（VB-CABLE 虚拟声卡），让遥控器麦克风声音能进系统、供输入法听写。
+                    {{ t("用来检查并修好电脑上的语音通路（VB-CABLE 虚拟声卡），让遥控器麦克风声音能进系统、供输入法听写。", "Checks and fixes the PC voice path (VB-CABLE virtual sound card) so the remote’s mic audio reaches the system for IME dictation.") }}
                   </p>
                   <div class="tip-block tip-on">
-                    <div class="tip-badge">会做什么</div>
+                    <div class="tip-badge">{{ t("会做什么", "What it does") }}</div>
                     <ul>
-                      <li>检测 VB-CABLE 是否已安装、是否可用</li>
-                      <li>「自动修复」与「使用内置驱动安装」均打开内嵌官方安装包界面</li>
-                      <li>也可下载官网最新版自行安装</li>
+                      <li>{{ t("检测 VB-CABLE 是否已安装、是否可用", "Checks whether VB-CABLE is installed and working") }}</li>
+                      <li>{{ t("「自动修复」与「使用内置驱动安装」均打开内嵌官方安装包界面", "“Auto repair” and “Install bundled driver” both open the bundled official installer") }}</li>
+                      <li>{{ t("也可下载官网最新版自行安装", "Or download the latest version from the official site and install it yourself") }}</li>
                     </ul>
                   </div>
                   <div class="tip-block tip-off">
-                    <div class="tip-badge">什么时候点</div>
+                    <div class="tip-badge">{{ t("什么时候点", "When to use") }}</div>
                     <ul>
-                      <li>首次使用语音，或重装系统 / 换电脑后</li>
-                      <li>按语音键没声音、输入法听不到遥控器</li>
-                      <li>提示未检测到 VB-CABLE、语音环境异常时</li>
+                      <li>{{ t("首次使用语音，或重装系统 / 换电脑后", "First time using voice, or after reinstalling Windows / switching PCs") }}</li>
+                      <li>{{ t("按语音键没声音、输入法听不到遥控器", "No sound from the voice key, or the IME can’t hear the remote") }}</li>
+                      <li>{{ t("提示未检测到 VB-CABLE、语音环境异常时", "You’re told VB-CABLE wasn’t detected or the voice setup is broken") }}</li>
                     </ul>
                   </div>
                   <p class="tip-foot">
-                    点「修复虚拟声卡」会先弹出选项：「自动修复」或「使用内置官方 V2.15.18 版安装」都会打开官方安装界面（无黑框）。也可用下载包 / 官网。若提示必须重启，重启后再打开本软件。
+                    {{ t("点「修复虚拟声卡」会先弹出选项：「自动修复」或「使用内置官方 V2.15.18 版安装」都会打开官方安装界面（无黑框）。也可用下载包 / 官网。若提示必须重启，重启后再打开本软件。", "“Repair sound card” first shows options: “Auto repair” and “Install bundled official V2.15.18” both open the official installer (no console window). You can also use the download package or the official site. If a restart is required, restart and reopen this app.") }}
                   </p>
                 </div>
               </Teleport>
@@ -1828,14 +1849,14 @@ async function retryLoadConfig() {
                 :disabled="winuhidRepairing || voiceRepairing || atvvRepairing || restarting"
                 @click="repairWinUHid"
               >
-                {{ winuhidRepairing ? "修复中..." : "修复虚拟键盘" }}
+                {{ winuhidRepairing ? t("修复中...", "Repairing...") : t("修复虚拟键盘", "Repair keyboard") }}
               </button>
               <button
                 ref="winuhidInfoBtn"
                 type="button"
                 class="title-info"
                 :aria-expanded="showWinuhidTip"
-                aria-label="修复虚拟键盘说明"
+                :aria-label="t('修复虚拟键盘说明', 'About Repair keyboard')"
                 @mouseenter="openWinuhidTip"
                 @mouseleave="scheduleCloseWinuhidTip"
                 @focus="openWinuhidTip"
@@ -1855,26 +1876,26 @@ async function retryLoadConfig() {
                   @mouseleave="scheduleCloseWinuhidTip"
                 >
                   <p class="tip-lead">
-                    在电脑里装一块「虚拟键盘」，让豆包、千问等输入法把遥控器的语音键当成真键盘按键，而不是普通模拟点击（那种方式常被输入法忽略）。
+                    {{ t("在电脑里装一块「虚拟键盘」，让豆包、千问等输入法把遥控器的语音键当成真键盘按键，而不是普通模拟点击（那种方式常被输入法忽略）。", "Installs a “virtual keyboard” so IMEs like Doubao and Qwen treat the remote’s voice key as a real key press, not a simulated click (which IMEs often ignore).") }}
                   </p>
                   <div class="tip-block tip-on">
-                    <div class="tip-badge">会做什么</div>
+                    <div class="tip-badge">{{ t("会做什么", "What it does") }}</div>
                     <ul>
-                      <li>部署 WinUHid 组件，并安装内嵌的虚拟键盘驱动</li>
-                      <li>在系统里注册并启动虚拟键盘设备，让语音组合键按硬件方式注入</li>
-                      <li>完成后状态栏「虚拟键盘」应显示就绪；仍不行可选导出安装包</li>
+                      <li>{{ t("部署 WinUHid 组件，并安装内嵌的虚拟键盘驱动", "Deploys WinUHid and installs the bundled virtual keyboard driver") }}</li>
+                      <li>{{ t("在系统里注册并启动虚拟键盘设备，让语音组合键按硬件方式注入", "Registers and starts the virtual keyboard device so voice hotkeys are injected as hardware input") }}</li>
+                      <li>{{ t("完成后状态栏「虚拟键盘」应显示就绪；仍不行可选导出安装包", "Afterwards “Virtual keyboard” in the status bar should show ready; if not, export the installer") }}</li>
                     </ul>
                   </div>
                   <div class="tip-block tip-off">
-                    <div class="tip-badge">什么时候点</div>
+                    <div class="tip-badge">{{ t("什么时候点", "When to use") }}</div>
                     <ul>
-                      <li>首次用豆包 / 千问语音，或重装系统、换电脑后</li>
-                      <li>状态里「虚拟键盘」未就绪，或按语音键唤不醒输入法</li>
-                      <li>日志提示需要 WinUHid、语音键被拦截时</li>
+                      <li>{{ t("首次用豆包 / 千问语音，或重装系统、换电脑后", "First time using Doubao / Qwen voice, or after reinstalling Windows / switching PCs") }}</li>
+                      <li>{{ t("状态里「虚拟键盘」未就绪，或按语音键唤不醒输入法", "“Virtual keyboard” isn’t ready, or the voice key doesn’t wake the IME") }}</li>
+                      <li>{{ t("日志提示需要 WinUHid、语音键被拦截时", "The log says WinUHid is needed or the voice key is blocked") }}</li>
                     </ul>
                   </div>
                   <p class="tip-foot">
-                    会弹出 UAC 管理员确认，请点允许。点按钮后会打开修复选项：自动修复、强制重装、导出到桌面或从 Release 下载。仅当 Windows 返回必须重启时才重启；否则再点一次「自动修复」。这和「修复虚拟声卡」「修复 ATVV 连接」不是一回事。
+                    {{ t("会弹出 UAC 管理员确认，请点允许。点按钮后会打开修复选项：自动修复、强制重装、导出到桌面或从 Release 下载。仅当 Windows 返回必须重启时才重启；否则再点一次「自动修复」。这和「修复虚拟声卡」「修复 ATVV 连接」不是一回事。", "A UAC admin prompt will appear; click Yes. The button opens repair options: auto repair, force reinstall, export to desktop, or download from Release. Restart only if Windows says it’s required; otherwise click “Auto repair” again. This is separate from “Repair sound card” and “Repair ATVV”.") }}
                   </p>
                 </div>
               </Teleport>
@@ -1887,14 +1908,14 @@ async function retryLoadConfig() {
                 :disabled="atvvRepairing || restarting || voiceRepairing || winuhidRepairing"
                 @click="repairAtvv"
               >
-                {{ atvvRepairing ? "修复中..." : "修复 ATVV 连接" }}
+                {{ atvvRepairing ? t("修复中...", "Repairing...") : t("修复 ATVV 连接", "Repair ATVV") }}
               </button>
               <button
                 ref="atvvInfoBtn"
                 type="button"
                 class="title-info"
                 :aria-expanded="showAtvvTip"
-                aria-label="修复 ATVV 连接说明"
+                :aria-label="t('修复 ATVV 连接说明', 'About Repair ATVV')"
                 @mouseenter="openAtvvTip"
                 @mouseleave="scheduleCloseAtvvTip"
                 @focus="openAtvvTip"
@@ -1914,27 +1935,27 @@ async function retryLoadConfig() {
                   @mouseleave="scheduleCloseAtvvTip"
                 >
                   <p class="tip-lead">
-                    修好遥控器到电脑的「语音专用蓝牙通道」（ATVV）。通道正常后，按住语音键才有绿色音频波动，语音听写才能用。
+                    {{ t("修好遥控器到电脑的「语音专用蓝牙通道」（ATVV）。通道正常后，按住语音键才有绿色音频波动，语音听写才能用。", "Repairs the remote’s dedicated Bluetooth voice channel (ATVV). Once it works, holding the voice key shows a green waveform and dictation works.") }}
                   </p>
                   <div class="tip-block tip-on">
-                    <div class="tip-badge">会做什么</div>
+                    <div class="tip-badge">{{ t("会做什么", "What it does") }}</div>
                     <ul>
-                      <li>检查是否有其它遥控桥接软件占用</li>
-                      <li v-if="!isLinux">暂停 HID Tap 后软重启连接，并重新订阅语音通道</li>
-                      <li v-else>软重启与遥控器的蓝牙连接，并重新订阅语音通道</li>
-                      <li>有占用时会先弹窗让你结束相关进程，再继续修复</li>
+                      <li>{{ t("检查是否有其它遥控桥接软件占用", "Checks whether another remote bridge app is using it") }}</li>
+                      <li v-if="!isLinux">{{ t("暂停 HID Tap 后软重启连接，并重新订阅语音通道", "Pauses HID Tap, soft-restarts the connection and resubscribes to the voice channel") }}</li>
+                      <li v-else>{{ t("软重启与遥控器的蓝牙连接，并重新订阅语音通道", "Soft-restarts the Bluetooth connection to the remote and resubscribes to the voice channel") }}</li>
+                      <li>{{ t("有占用时会先弹窗让你结束相关进程，再继续修复", "If something is using it, you’re asked to end those processes before repair continues") }}</li>
                     </ul>
                   </div>
                   <div class="tip-block tip-off">
-                    <div class="tip-badge">什么时候点</div>
+                    <div class="tip-badge">{{ t("什么时候点", "When to use") }}</div>
                     <ul>
-                      <li>「音频信号」旁出现红字「ATVV 未连接」</li>
-                      <li>按住语音键说话，绿色波形一直不动</li>
-                      <li v-if="!isLinux">按语音键后记事本等处插入了日期时间</li>
+                      <li>{{ t("「音频信号」旁出现红字「ATVV 未连接」", "Red “ATVV not connected” appears next to “Audio signal”") }}</li>
+                      <li>{{ t("按住语音键说话，绿色波形一直不动", "The green waveform stays flat while you hold the voice key and speak") }}</li>
+                      <li v-if="!isLinux">{{ t("按语音键后记事本等处插入了日期时间", "Pressing the voice key inserts the date/time in Notepad etc.") }}</li>
                     </ul>
                   </div>
                   <p class="tip-foot">
-                    平时语音和波形都正常就不必点。这和「修复虚拟声卡」不同：那边管电脑声卡，这边管遥控器蓝牙语音通道。
+                    {{ t("平时语音和波形都正常就不必点。这和「修复虚拟声卡」不同：那边管电脑声卡，这边管遥控器蓝牙语音通道。", "No need to click if voice and the waveform work. Unlike “Repair sound card” (the PC’s sound card), this fixes the remote’s Bluetooth voice channel.") }}
                   </p>
                 </div>
               </Teleport>
@@ -1946,14 +1967,14 @@ async function retryLoadConfig() {
                 :disabled="restarting || voiceRepairing || atvvRepairing"
                 @click="restartBridge"
               >
-                {{ restarting ? "重启中..." : "重启桥接" }}
+                {{ restarting ? t("重启中...", "Restarting...") : t("重启桥接", "Restart bridge") }}
               </button>
               <button
                 ref="restartInfoBtn"
                 type="button"
                 class="title-info"
                 :aria-expanded="showRestartTip"
-                aria-label="重启桥接说明"
+                :aria-label="t('重启桥接说明', 'About Restart bridge')"
                 @mouseenter="openRestartTip"
                 @mouseleave="scheduleCloseRestartTip"
                 @focus="openRestartTip"
@@ -1973,26 +1994,26 @@ async function retryLoadConfig() {
                   @mouseleave="scheduleCloseRestartTip"
                 >
                   <p class="tip-lead">
-                    软重启「与遥控器的蓝牙连接」，按最新配置重新连上；无需退出整个应用。
+                    {{ t("软重启「与遥控器的蓝牙连接」，按最新配置重新连上；无需退出整个应用。", "Soft-restarts the Bluetooth connection to the remote and reconnects with the latest settings — no need to quit the app.") }}
                   </p>
                   <div class="tip-block tip-on">
-                    <div class="tip-badge">会做什么</div>
+                    <div class="tip-badge">{{ t("会做什么", "What it does") }}</div>
                     <ul>
-                      <li>停止并重新拉起蓝牙 / ATVV 连接</li>
-                      <li>按当前映射、增益等配置重新尝试连接遥控器</li>
-                      <li>语音路由异常时也会顺带尝试拉起</li>
+                      <li>{{ t("停止并重新拉起蓝牙 / ATVV 连接", "Stops and restarts the Bluetooth / ATVV connection") }}</li>
+                      <li>{{ t("按当前映射、增益等配置重新尝试连接遥控器", "Reconnects to the remote using the current mapping, gain and other settings") }}</li>
+                      <li>{{ t("语音路由异常时也会顺带尝试拉起", "Also tries to restart voice routing if it’s down") }}</li>
                     </ul>
                   </div>
                   <div class="tip-block tip-off">
-                    <div class="tip-badge">什么时候点</div>
+                    <div class="tip-badge">{{ t("什么时候点", "When to use") }}</div>
                     <ul>
-                      <li>虚拟声卡、ATVV 或蓝牙连接异常</li>
-                      <li>状态显示异常、按键失灵、连上又掉线</li>
-                      <li>长时间不用后突然不响应，想快速恢复</li>
+                      <li>{{ t("虚拟声卡、ATVV 或蓝牙连接异常", "Problems with the virtual sound card, ATVV or Bluetooth") }}</li>
+                      <li>{{ t("状态显示异常、按键失灵、连上又掉线", "Odd status, unresponsive keys, or repeated disconnects") }}</li>
+                      <li>{{ t("长时间不用后突然不响应，想快速恢复", "Stops responding after a long idle and you want a quick fix") }}</li>
                     </ul>
                   </div>
                   <p class="tip-foot">
-                    返回 / 音量专用通道会尽量保持，一般不必为此反复重启。若仍无效，可再试「修复虚拟声卡」，或查看日志。
+                    {{ t("返回 / 音量专用通道会尽量保持，一般不必为此反复重启。若仍无效，可再试「修复虚拟声卡」，或查看日志。", "The Back / volume channel is kept alive where possible, so you rarely need to restart for it. If it still fails, try “Repair sound card” or check the logs.") }}
                   </p>
                 </div>
               </Teleport>
@@ -2003,7 +2024,7 @@ async function retryLoadConfig() {
                 type="button"
                 @click="showSetupTips = true"
               >
-                输入法设置说明
+                {{ t("输入法设置说明", "IME setup guide") }}
               </button>
             </div>
           </div>
@@ -2013,15 +2034,15 @@ async function retryLoadConfig() {
       <aside class="log-aside">
         <section class="card log-card">
           <div class="log-card-head">
-            <p class="card-text">状态日志</p>
+            <p class="card-text">{{ t("状态日志", "Status log") }}</p>
             <button class="btn btn-tiny btn-secondary" type="button" @click="openLogs">
-              日志
+              {{ t("日志", "Logs") }}
             </button>
           </div>
           <div ref="logAreaRef" class="log-area">
             <p v-for="entry in logs" :key="entry.id" class="log-entry">
               <span class="log-time">{{ entry.time }}</span>
-              <span class="log-text">{{ entry.text }}</span>
+              <span class="log-text">{{ entry.en !== undefined ? t(entry.text, entry.en) : tb(entry.text) }}</span>
             </p>
           </div>
         </section>
@@ -2033,10 +2054,10 @@ async function retryLoadConfig() {
       <div v-if="showSetupTips" class="voice-modal-backdrop" @click.self="showSetupTips = false">
         <div class="voice-modal setup-tips-modal" role="dialog" aria-modal="true" aria-labelledby="setup-tips-title">
           <div class="setup-tips-head">
-            <h3 id="setup-tips-title">输入法设置</h3>
-            <button class="btn btn-secondary" type="button" @click="showSetupTips = false">关闭</button>
+            <h3 id="setup-tips-title">{{ t("输入法设置", "IME setup") }}</h3>
+            <button class="btn btn-secondary" type="button" @click="showSetupTips = false">{{ t("关闭", "Close") }}</button>
           </div>
-          <div class="setup-ime-tabs" role="tablist" aria-label="输入法分类">
+          <div class="setup-ime-tabs" role="tablist" :aria-label="t('输入法分类', 'IME categories')">
             <button
               v-for="tab in imeTabs"
               :key="tab.id"
@@ -2092,7 +2113,7 @@ async function retryLoadConfig() {
                   :disabled="!config"
                   @click="applyImePreset(preset.id)"
                 >
-                  快速应用：{{ presetShortcutLabel(preset) }}
+                  {{ t("快速应用：", "Quick apply: ") }}{{ presetShortcutLabel(preset) }}
                 </button>
               </div>
             </article>
@@ -2122,22 +2143,22 @@ async function retryLoadConfig() {
                   :disabled="!config"
                   @click="applyImePreset(preset.id)"
                 >
-                  快速应用：{{ presetShortcutLabel(preset) }}
+                  {{ t("快速应用：", "Quick apply: ") }}{{ presetShortcutLabel(preset) }}
                 </button>
               </div>
               <figure v-if="isWechatPreset(preset.id)" class="setup-ime-figure">
-                <figcaption>微信 · 「按住说话」须设为「F5 + 本软件快捷键」（例：F5 + 左 Ctrl + 左 Win）</figcaption>
+                <figcaption>{{ t("微信 · 「按住说话」须设为「F5 + 本软件快捷键」（例：F5 + 左 Ctrl + 左 Win）", "WeChat · “Hold to talk” must be set to “F5 + this app’s hotkey” (e.g. F5 + Left Ctrl + Left Win)") }}</figcaption>
                 <img
                   :src="wechatImeHotkeysImg"
-                  alt="微信输入法按住说话：F5 加本软件设置的快捷键"
+                  :alt="t('微信输入法按住说话：F5 加本软件设置的快捷键', 'WeChat IME hold to talk: F5 plus the hotkey set in this app')"
                   class="setup-ime-img"
                 />
               </figure>
               <figure v-if="isDoubaoHoldPreset(preset.id)" class="setup-ime-figure">
-                <figcaption>豆包 · 「长按模式」快捷键</figcaption>
+                <figcaption>{{ t("豆包 · 「长按模式」快捷键", "Doubao · “Long-press mode” hotkey") }}</figcaption>
                 <img
                   :src="doubaoImeHotkeysImg"
-                  alt="豆包输入法长按模式快捷键设置"
+                  :alt="t('豆包输入法长按模式快捷键设置', 'Doubao IME long-press mode hotkey settings')"
                   class="setup-ime-img"
                 />
               </figure>
@@ -2150,27 +2171,27 @@ async function retryLoadConfig() {
       <div v-if="showLogModal" class="voice-modal-backdrop" @click.self="showLogModal = false">
         <div class="voice-modal log-modal" role="dialog" aria-modal="true">
           <div class="log-modal-head">
-            <h3>运行日志</h3>
+            <h3>{{ t("运行日志", "App log") }}</h3>
             <button
               type="button"
               class="log-clear-link"
               :disabled="logLoading"
               @click="clearLog"
             >
-              清空日志
+              {{ t("清空日志", "Clear log") }}
             </button>
           </div>
           <p v-if="logPath" class="log-path">{{ logPath }}</p>
-          <pre class="log-viewer">{{ logLoading ? "读取中…" : logText }}</pre>
+          <pre class="log-viewer">{{ logLoading ? t("读取中…", "Loading…") : logText }}</pre>
           <div class="log-modal-actions">
             <button class="btn btn-primary" type="button" :disabled="logLoading" @click="copyLog">
-              {{ logCopyHint || "复制" }}
+              {{ logCopyHint || t("复制", "Copy") }}
             </button>
             <button class="btn btn-secondary" type="button" @click="openLogExternally">
-              {{ isLinux ? "用文本编辑器打开" : "用记事本打开" }}
+              {{ isLinux ? t("用文本编辑器打开", "Open in text editor") : t("用记事本打开", "Open in Notepad") }}
             </button>
             <button class="btn btn-secondary" type="button" @click="showLogModal = false">
-              关闭
+              {{ t("关闭", "Close") }}
             </button>
           </div>
         </div>
@@ -2181,8 +2202,8 @@ async function retryLoadConfig() {
         @click.self="cableDownloadPhase !== 'downloading' && !voiceRepairing && (showVoiceChoice = false)"
       >
         <div class="voice-modal" role="dialog" aria-modal="true">
-          <h3>修复虚拟声卡</h3>
-          <div class="voice-repair-tabs" role="tablist" aria-label="修复虚拟声卡菜单">
+          <h3>{{ t("修复虚拟声卡", "Repair sound card") }}</h3>
+          <div class="voice-repair-tabs" role="tablist" :aria-label="t('修复虚拟声卡菜单', 'Repair sound card menu')">
             <button
               v-for="tab in voiceRepairTabs"
               :key="tab.id"
@@ -2198,8 +2219,8 @@ async function retryLoadConfig() {
           </div>
 
           <div v-show="voiceRepairTab === 'repair'" class="voice-repair-panel" role="tabpanel">
-            <p>{{ voiceChoiceMsg || "请选择检测 / 安装方式：" }}</p>
-            <p class="voice-modal-reboot-tip">新装驱动后点击修复如果未就绪或无声,最好重启系统一次</p>
+            <p>{{ voiceChoiceMsg || t("请选择检测 / 安装方式：", "Choose how to check / install:") }}</p>
+            <p class="voice-modal-reboot-tip">{{ t("新装驱动后点击修复如果未就绪或无声,最好重启系统一次", "If it’s still not ready or silent after a new driver install, restart your PC once") }}</p>
 
             <div
               v-if="cableDownloadPhase === 'downloading' || cableDownloadPhase === 'error'"
@@ -2211,8 +2232,8 @@ async function retryLoadConfig() {
                 <span class="winuhid-download-label">
                   {{
                     cableDownloadPhase === "downloading"
-                      ? "正在下载驱动包…"
-                      : "下载失败"
+                      ? t("正在下载驱动包…", "Downloading driver package…")
+                      : t("下载失败", "Download failed")
                   }}
                 </span>
                 <span
@@ -2235,7 +2256,7 @@ async function retryLoadConfig() {
                 />
               </div>
               <p v-if="cableDownloadMessage" class="winuhid-download-msg">
-                {{ cableDownloadMessage }}
+                {{ tb(cableDownloadMessage) }}
               </p>
             </div>
 
@@ -2246,7 +2267,7 @@ async function retryLoadConfig() {
                 :disabled="voiceRepairing || cableDownloadPhase === 'downloading'"
                 @click="chooseVoiceSource('auto')"
               >
-                {{ voiceRepairing ? "处理中…" : "自动修复" }}
+                {{ voiceRepairing ? t("处理中…", "Working…") : t("自动修复", "Auto repair") }}
               </button>
               <button
                 class="btn btn-secondary"
@@ -2254,7 +2275,7 @@ async function retryLoadConfig() {
                 :disabled="voiceRepairing || cableDownloadPhase === 'downloading'"
                 @click="chooseVoiceSource('embedded')"
               >
-                使用内置官方VB-CABLE (V2.15.18) 版安装
+                {{ t("使用内置官方VB-CABLE (V2.15.18) 版安装", "Install bundled official VB-CABLE (V2.15.18)") }}
               </button>
               <div class="voice-modal-download-row">
                 <button
@@ -2265,8 +2286,8 @@ async function retryLoadConfig() {
                 >
                   {{
                     cableDownloadPhase === "downloading"
-                      ? "下载中…"
-                      : "从官网下载最新VB-CABLE驱动包手动安装"
+                      ? t("下载中…", "Downloading…")
+                      : t("从官网下载最新VB-CABLE驱动包手动安装", "Download latest VB-CABLE package to install manually")
                   }}
                 </button>
                 <button
@@ -2275,7 +2296,7 @@ async function retryLoadConfig() {
                   type="button"
                   @click="stopCableZipDownload"
                 >
-                  停止下载
+                  {{ t("停止下载", "Stop download") }}
                 </button>
               </div>
               <button
@@ -2284,7 +2305,7 @@ async function retryLoadConfig() {
                 :disabled="voiceRepairing || cableDownloadPhase === 'downloading'"
                 @click="chooseVoiceSource('download_page')"
               >
-                打开VB-CABLE官网
+                {{ t("打开VB-CABLE官网", "Open VB-CABLE website") }}
               </button>
               <button
                 class="btn btn-secondary"
@@ -2292,66 +2313,66 @@ async function retryLoadConfig() {
                 :disabled="cableDownloadPhase === 'downloading'"
                 @click="showVoiceChoice = false"
               >
-                取消
+                {{ t("取消", "Cancel") }}
               </button>
             </div>
           </div>
 
           <div v-show="voiceRepairTab === 'guide'" class="voice-repair-panel" role="tabpanel">
             <p class="voice-modal-uac-tip">
-              「自动修复」与「使用内置驱动安装」都会打开<strong>官方 VB-CABLE 安装界面</strong>（无黑框）。弹出 Windows 管理员确认（UAC）时请点允许。
+              {{ t("「自动修复」与「使用内置驱动安装」都会打开", "“Auto repair” and “Install bundled driver” both open the ") }}<strong>{{ t("官方 VB-CABLE 安装界面", "official VB-CABLE installer") }}</strong>{{ t("（无黑框）。弹出 Windows 管理员确认（UAC）时请点允许。", " (no console window). When Windows asks for admin approval (UAC), click Yes.") }}
             </p>
             <div class="voice-modal-reboot-followup">
-              <p class="voice-modal-reboot-followup-title">安装 / 修复怎么做：</p>
+              <p class="voice-modal-reboot-followup-title">{{ t("安装 / 修复怎么做：", "How to install / repair:") }}</p>
               <ol>
-                <li>在「修复虚拟声卡」窗口的「修复」页点「自动修复」或「使用内置官方 VB-CABLE (V2.15.18) 版安装」</li>
-                <li>按官方安装向导完成安装；新装驱动完成后必须重启电脑</li>
-                <li>重启后重新打开本软件；需要时再点「修复虚拟声卡」</li>
+                <li>{{ t("在「修复虚拟声卡」窗口的「修复」页点「自动修复」或「使用内置官方 VB-CABLE (V2.15.18) 版安装」", "In the “Repair sound card” window, on the “Repair” tab, click “Auto repair” or “Install bundled official VB-CABLE (V2.15.18)”") }}</li>
+                <li>{{ t("按官方安装向导完成安装；新装驱动完成后必须重启电脑", "Finish the official setup wizard; restart your PC after installing a new driver") }}</li>
+                <li>{{ t("重启后重新打开本软件；需要时再点「修复虚拟声卡」", "After restarting, reopen this app; click “Repair sound card” again if needed") }}</li>
               </ol>
               <p>
-                两键都使用软件内嵌的完整官方安装包与安装页面。装完必须重启，虚拟声卡才会真正可用。
+                {{ t("两键都使用软件内嵌的完整官方安装包与安装页面。装完必须重启，虚拟声卡才会真正可用。", "Both buttons use the full official installer bundled with the app. You must restart after installing for the virtual sound card to work.") }}
               </p>
             </div>
             <p class="voice-modal-note">
-              也可在「修复虚拟声卡」窗口的「修复」页下载官网最新包，或打开 VB-CABLE 官网自行安装。详细排错见「常见问题」。
+              {{ t("也可在「修复虚拟声卡」窗口的「修复」页下载官网最新包，或打开 VB-CABLE 官网自行安装。详细排错见「常见问题」。", "You can also download the latest package on the “Repair” tab, or install it from the VB-CABLE website. See “FAQ” for troubleshooting.") }}
             </p>
           </div>
 
           <div v-show="voiceRepairTab === 'faq'" class="voice-repair-panel voice-repair-faq" role="tabpanel">
             <section class="voice-faq-item">
-              <h4>一、没有声音 / 输入法听不到遥控器</h4>
+              <h4>{{ t("一、没有声音 / 输入法听不到遥控器", "1. No sound / the IME can’t hear the remote") }}</h4>
               <p>
-                多数时候不是遥控器坏了，而是输入法听的不是虚拟声卡那一路。
+                {{ t("多数时候不是遥控器坏了，而是输入法听的不是虚拟声卡那一路。", "Usually the remote is fine — the IME just isn’t listening to the virtual sound card.") }}
               </p>
               <ol>
-                <li>打开你用的输入法设置（微信 / 豆包 / 千问等），找到「麦克风」或「录音设备」</li>
-                <li>把它改成 <strong>CABLE Output</strong>（名字里带 CABLE、Output 即可）</li>
-                <li>回到本软件，点「修复虚拟声卡」→「修复」页，再点一次「自动修复」，按提示允许管理员权限并完成安装向导</li>
-                <li>若刚装过驱动，先重启电脑再测语音</li>
+                <li>{{ t("打开你用的输入法设置（微信 / 豆包 / 千问等），找到「麦克风」或「录音设备」", "Open your IME’s settings (WeChat / Doubao / Qwen etc.) and find “Microphone” or “Recording device”") }}</li>
+                <li>{{ t("把它改成 ", "Set it to ") }}<strong>CABLE Output</strong>{{ t("（名字里带 CABLE、Output 即可）", " (any name containing CABLE and Output)") }}</li>
+                <li>{{ t("回到本软件，点「修复虚拟声卡」→「修复」页，再点一次「自动修复」，按提示允许管理员权限并完成安装向导", "Back in this app, click “Repair sound card” → “Repair” tab → “Auto repair” again, allow admin access and finish the wizard") }}</li>
+                <li>{{ t("若刚装过驱动，先重启电脑再测语音", "If you just installed the driver, restart your PC before testing voice") }}</li>
               </ol>
             </section>
             <section class="voice-faq-item">
-              <h4>二、系统播放/输出乱了，或听不到电脑声音</h4>
+              <h4>{{ t("二、系统播放/输出乱了，或听不到电脑声音", "2. System output is wrong, or you can’t hear your PC") }}</h4>
               <p>
-                VB-CABLE 会在系统里多出几条「声卡」。如果误把扬声器/耳机设成了 CABLE，正常音乐、视频会没声或很怪。
+                {{ t("VB-CABLE 会在系统里多出几条「声卡」。如果误把扬声器/耳机设成了 CABLE，正常音乐、视频会没声或很怪。", "VB-CABLE adds several “sound cards” to the system. If your speakers/headphones are set to CABLE by mistake, music and video will be silent or sound odd.") }}
               </p>
               <ol>
-                <li>打开 Windows「声音设置」→「输出」</li>
-                <li>先试着在 <strong>CABLE In 16ch</strong> 和 <strong>CABLE Input</strong> 之间切换（个别机器显示名略有差别）</li>
-                <li>真正听喇叭/耳机时，请把输出改回你的真实音箱或耳机，不要长期停在 CABLE 上</li>
-                <li>若怎么切都异常：点「修复虚拟声卡」→「修复」页卸载/重装官方驱动，装完<strong>重启</strong>，再打开本软件测一次</li>
+                <li>{{ t("打开 Windows「声音设置」→「输出」", "Open Windows “Sound settings” → “Output”") }}</li>
+                <li>{{ t("先试着在 ", "First try switching between ") }}<strong>CABLE In 16ch</strong>{{ t(" 和 ", " and ") }}<strong>CABLE Input</strong>{{ t(" 之间切换（个别机器显示名略有差别）", " (names may differ slightly on some PCs)") }}</li>
+                <li>{{ t("真正听喇叭/耳机时，请把输出改回你的真实音箱或耳机，不要长期停在 CABLE 上", "To listen through speakers/headphones, switch output back to your real device — don’t leave it on CABLE") }}</li>
+                <li>{{ t("若怎么切都异常：点「修复虚拟声卡」→「修复」页卸载/重装官方驱动，装完", "If nothing works: click “Repair sound card” → “Repair” tab to uninstall/reinstall the official driver, ") }}<strong>{{ t("重启", "restart") }}</strong>{{ t("，再打开本软件测一次", ", then reopen this app and test again") }}</li>
               </ol>
             </section>
             <section class="voice-faq-item">
-              <h4>三、设备管理器里有多个 VB-CABLE</h4>
+              <h4>{{ t("三、设备管理器里有多个 VB-CABLE", "3. Multiple VB-CABLE devices in Device Manager") }}</h4>
               <p>
-                重复安装或异常修复后，可能出现两个（甚至更多）VB-Audio / VB-CABLE 设备，容易冲突、Failed Start，表现为没声或一直修不好。
+                {{ t("重复安装或异常修复后，可能出现两个（甚至更多）VB-Audio / VB-CABLE 设备，容易冲突、Failed Start，表现为没声或一直修不好。", "After repeated installs or failed repairs, two or more VB-Audio / VB-CABLE devices may appear. They can conflict (Failed Start), causing silence or repairs that never stick.") }}
               </p>
               <ol>
-                <li>打开「设备管理器」→ 展开「声音、视频和游戏控制器」（有的在「音频输入和输出」）</li>
-                <li>若看到多个 VB-CABLE / VB-Audio Virtual Cable，对多余或带感叹号的项：右键 → 卸载设备（有「删除驱动程序」可勾上）</li>
-                <li>回到本软件，点「修复虚拟声卡」→「修复」页，再点「自动修复」或「使用内置官方安装」，走完官方向导</li>
-                <li><strong>重启电脑</strong>后再打开本软件，确认状态里虚拟声卡为就绪</li>
+                <li>{{ t("打开「设备管理器」→ 展开「声音、视频和游戏控制器」（有的在「音频输入和输出」）", "Open “Device Manager” → expand “Sound, video and game controllers” (or “Audio inputs and outputs”)") }}</li>
+                <li>{{ t("若看到多个 VB-CABLE / VB-Audio Virtual Cable，对多余或带感叹号的项：右键 → 卸载设备（有「删除驱动程序」可勾上）", "If you see several VB-CABLE / VB-Audio Virtual Cable entries, right-click each extra one (or one with a warning icon) → Uninstall device (tick “Delete the driver” if offered)") }}</li>
+                <li>{{ t("回到本软件，点「修复虚拟声卡」→「修复」页，再点「自动修复」或「使用内置官方安装」，走完官方向导", "Back in this app, click “Repair sound card” → “Repair” tab → “Auto repair” or “Install bundled official”, and finish the official wizard") }}</li>
+                <li><strong>{{ t("重启电脑", "Restart your PC") }}</strong>{{ t("后再打开本软件，确认状态里虚拟声卡为就绪", ", then reopen this app and check that the virtual sound card shows ready") }}</li>
               </ol>
             </section>
           </div>
@@ -2369,21 +2390,21 @@ async function retryLoadConfig() {
           aria-modal="true"
           aria-labelledby="voice-reboot-title"
         >
-          <h3 id="voice-reboot-title">需要重启 Windows</h3>
-          <p>{{ voiceRebootMsg || "驱动已安装，必须重启系统后虚拟声卡才会生效。" }}</p>
-          <p class="voice-modal-reboot-tip">安装完成必须重启系统</p>
+          <h3 id="voice-reboot-title">{{ t("需要重启 Windows", "Restart Windows required") }}</h3>
+          <p>{{ tb(voiceRebootMsg) || t("驱动已安装，必须重启系统后虚拟声卡才会生效。", "The driver is installed. Restart Windows for the virtual sound card to take effect.") }}</p>
+          <p class="voice-modal-reboot-tip">{{ t("安装完成必须重启系统", "You must restart after installation") }}</p>
           <div class="voice-modal-reboot-followup">
-            <p class="voice-modal-reboot-followup-title">重启后请按下面做一遍：</p>
+            <p class="voice-modal-reboot-followup-title">{{ t("重启后请按下面做一遍：", "After restarting, do the following:") }}</p>
             <ol>
-              <li>重新打开本软件</li>
-              <li>再点「修复虚拟声卡」→「自动修复」一次</li>
-              <li>若弹出 UAC，点允许；成功后默认麦克风会设为 CABLE Output</li>
+              <li>{{ t("重新打开本软件", "Reopen this app") }}</li>
+              <li>{{ t("再点「修复虚拟声卡」→「自动修复」一次", "Click “Repair sound card” → “Auto repair” once more") }}</li>
+              <li>{{ t("若弹出 UAC，点允许；成功后默认麦克风会设为 CABLE Output", "If UAC appears, click Yes; on success the default mic is set to CABLE Output") }}</li>
             </ol>
-            <p>不要只重启、不点「自动修复」，否则端点可能仍未校正。</p>
+            <p>{{ t("不要只重启、不点「自动修复」，否则端点可能仍未校正。", "Don’t just restart without clicking “Auto repair” — the audio endpoints may stay misconfigured.") }}</p>
           </div>
           <div class="voice-modal-actions">
             <button class="btn btn-primary" type="button" @click="showVoiceReboot = false">
-              知道了
+              {{ t("知道了", "Got it") }}
             </button>
           </div>
         </div>
@@ -2395,10 +2416,10 @@ async function retryLoadConfig() {
         @click.self="winuhidDownloadPhase !== 'downloading' && (showWinuhidChoice = false)"
       >
         <div class="voice-modal" role="dialog" aria-modal="true">
-          <h3>虚拟键盘修复</h3>
-          <p>{{ winuhidChoiceMsg || "请选择修复或安装方式：" }}</p>
-          <p class="voice-modal-uac-tip">自动修复会弹出 UAC；导出包请阅读「安装说明.txt」后双击 Run-Install.cmd</p>
-          <p class="voice-modal-reboot-tip">仅在 Windows 明确要求时才必须重启；否则再点一次「自动修复」即可</p>
+          <h3>{{ t("虚拟键盘修复", "Repair virtual keyboard") }}</h3>
+          <p>{{ tb(winuhidChoiceMsg) || t("请选择修复或安装方式：", "Choose how to repair or install:") }}</p>
+          <p class="voice-modal-uac-tip">{{ t("自动修复会弹出 UAC；导出包请阅读「安装说明.txt」后双击 Run-Install.cmd", "Auto repair shows a UAC prompt; for the exported package, read “安装说明.txt” then double-click Run-Install.cmd") }}</p>
+          <p class="voice-modal-reboot-tip">{{ t("仅在 Windows 明确要求时才必须重启；否则再点一次「自动修复」即可", "Restart only if Windows explicitly asks; otherwise just click “Auto repair” again") }}</p>
 
           <div
             v-if="winuhidDownloadPhase === 'downloading' || winuhidDownloadPhase === 'error'"
@@ -2410,8 +2431,8 @@ async function retryLoadConfig() {
               <span class="winuhid-download-label">
                 {{
                   winuhidDownloadPhase === "downloading"
-                    ? "正在下载驱动包…"
-                    : "下载失败"
+                    ? t("正在下载驱动包…", "Downloading driver package…")
+                    : t("下载失败", "Download failed")
                 }}
               </span>
               <span
@@ -2434,7 +2455,7 @@ async function retryLoadConfig() {
               />
             </div>
             <p v-if="winuhidDownloadMessage" class="winuhid-download-msg">
-              {{ winuhidDownloadMessage }}
+              {{ tb(winuhidDownloadMessage) }}
             </p>
           </div>
 
@@ -2445,7 +2466,7 @@ async function retryLoadConfig() {
               :disabled="winuhidRepairing || winuhidDownloadPhase === 'downloading'"
               @click="chooseWinuhidSource('embedded')"
             >
-              自动修复
+              {{ t("自动修复", "Auto repair") }}
             </button>
             <button
               class="btn btn-secondary"
@@ -2453,7 +2474,7 @@ async function retryLoadConfig() {
               :disabled="winuhidRepairing || winuhidDownloadPhase === 'downloading'"
               @click="chooseWinuhidSource('embedded_force')"
             >
-              强制重装（完整走一遍安装）
+              {{ t("强制重装（完整走一遍安装）", "Force reinstall (full install)") }}
             </button>
             <button
               class="btn btn-secondary"
@@ -2461,7 +2482,7 @@ async function retryLoadConfig() {
               :disabled="winuhidRepairing || winuhidDownloadPhase === 'downloading'"
               @click="chooseWinuhidSource('export')"
             >
-              导出到桌面手动安装
+              {{ t("导出到桌面手动安装", "Export to desktop to install manually") }}
             </button>
             <div class="voice-modal-download-row">
               <button
@@ -2472,8 +2493,8 @@ async function retryLoadConfig() {
               >
                 {{
                   winuhidDownloadPhase === "downloading"
-                    ? "下载中…"
-                    : "下载驱动包手动安装"
+                    ? t("下载中…", "Downloading…")
+                    : t("下载驱动包手动安装", "Download package to install manually")
                 }}
               </button>
               <button
@@ -2482,7 +2503,7 @@ async function retryLoadConfig() {
                 type="button"
                 @click="stopWinuhidZipDownload"
               >
-                停止下载
+                {{ t("停止下载", "Stop download") }}
               </button>
             </div>
             <button
@@ -2491,7 +2512,7 @@ async function retryLoadConfig() {
               :disabled="winuhidRepairing || winuhidDownloadPhase === 'downloading'"
               @click="chooseWinuhidSource('download_page')"
             >
-              打开 Release 页
+              {{ t("打开 Release 页", "Open Release page") }}
             </button>
             <button
               class="btn btn-secondary"
@@ -2499,11 +2520,11 @@ async function retryLoadConfig() {
               :disabled="winuhidDownloadPhase === 'downloading'"
               @click="showWinuhidChoice = false"
             >
-              取消
+              {{ t("取消", "Cancel") }}
             </button>
           </div>
           <p class="voice-modal-note">
-            导出/下载包内含「安装说明.txt」与 Run-Install.cmd。虚拟键盘已就绪时「自动修复」会跳过；需完整验证请选「强制重装」。未就绪且未要求重启时，再点一次「自动修复」即可。
+            {{ t("导出/下载包内含「安装说明.txt」与 Run-Install.cmd。虚拟键盘已就绪时「自动修复」会跳过；需完整验证请选「强制重装」。未就绪且未要求重启时，再点一次「自动修复」即可。", "Exported/downloaded packages include “安装说明.txt” and Run-Install.cmd. If the virtual keyboard is ready, “Auto repair” skips it; choose “Force reinstall” for a full check. If it’s not ready and no restart was requested, just click “Auto repair” again.") }}
           </p>
         </div>
       </div>
@@ -2511,24 +2532,24 @@ async function retryLoadConfig() {
       <LinuxVoicePanel v-if="isLinux" />
 
       <section v-if="configSectionLoading" class="card mapping-layout mapping-placeholder">
-        <h3>按键映射</h3>
-        <p class="mapping-placeholder-text">正在加载按键映射…</p>
+        <h3>{{ t("按键映射", "Key mapping") }}</h3>
+        <p class="mapping-placeholder-text">{{ t("正在加载按键映射…", "Loading key mapping…") }}</p>
       </section>
 
       <section v-else-if="configLoadState === 'error'" class="card mapping-layout mapping-error">
-        <h3>按键映射</h3>
+        <h3>{{ t("按键映射", "Key mapping") }}</h3>
         <p class="mapping-error-text">
-          配置未能加载，按键映射区域无法显示。
-          <span v-if="configLoadError">（{{ configLoadError }}）</span>
+          {{ t("配置未能加载，按键映射区域无法显示。", "Settings failed to load, so key mapping can’t be shown.") }}
+          <span v-if="configLoadError">{{ t("（", " (") }}{{ tb(configLoadError) }}{{ t("）", ")") }}</span>
         </p>
         <button class="btn btn-secondary" type="button" @click="retryLoadConfig">
-          重试加载
+          {{ t("重试加载", "Retry") }}
         </button>
       </section>
 
       <section v-else-if="config" class="card mapping-layout">
         <div class="mapping-heading">
-          <h3>按键映射</h3>
+          <h3>{{ t("按键映射", "Key mapping") }}</h3>
           <p
             v-if="lastMappingFlash"
             :key="lastMappingFlash.seq"
@@ -2537,23 +2558,23 @@ async function retryLoadConfig() {
             aria-live="polite"
           >
             <span class="mapping-flash-phase">{{
-              lastMappingFlash.phase === "up" ? "抬起" : "按下"
+              lastMappingFlash.phase === "up" ? t("抬起", "Released") : t("按下", "Pressed")
             }}</span>
             <span class="mapping-flash-remote">{{ lastMappingFlash.remote }}</span>
             <template v-if="lastMappingFlash.mapped">
-              <span class="mapping-flash-sep" aria-hidden="true">：</span>
+              <span class="mapping-flash-sep" aria-hidden="true">{{ t("：", ":") }}</span>
               <span class="mapping-flash-mapped">{{ lastMappingFlash.mapped }}</span>
             </template>
           </p>
         </div>
-        <div class="voice-toolbar" role="group" aria-label="语音听写设置">
+        <div class="voice-toolbar" role="group" :aria-label="t('语音听写设置', 'Voice dictation settings')">
           <div class="voice-toolbar-item">
-            <span class="voice-toolbar-label">点击语音键是否发送映射按键</span>
-            <label class="switch" title="点击语音键是否发送映射按键">
+            <span class="voice-toolbar-label">{{ t("点击语音键是否发送映射按键", "Send mapped key on voice press") }}</span>
+            <label class="switch" :title="t('点击语音键是否发送映射按键', 'Send mapped key on voice press')">
               <input
                 type="checkbox"
                 v-model="voiceShortcutEnabled"
-                aria-label="点击语音键是否发送映射按键"
+                :aria-label="t('点击语音键是否发送映射按键', 'Send mapped key on voice press')"
               />
               <span class="switch-slider" aria-hidden="true"></span>
             </label>
@@ -2562,7 +2583,7 @@ async function retryLoadConfig() {
               type="button"
               class="title-info voice-info"
               :aria-expanded="showVoiceShortcutTip"
-              aria-label="语音映射按键说明"
+              :aria-label="t('语音映射按键说明', 'About voice key mapping')"
               @mouseenter="openVoiceTip"
               @mouseleave="scheduleCloseVoiceTip"
               @focus="openVoiceTip"
@@ -2582,44 +2603,44 @@ async function retryLoadConfig() {
                 @mouseleave="scheduleCloseVoiceTip"
               >
                 <p class="tip-lead">
-                  只管「按语音键时要不要发映射快捷键」。传声（VB-CABLE）不受此开关影响。
+                  {{ t("只管「按语音键时要不要发映射快捷键」。传声（VB-CABLE）不受此开关影响。", "Only controls whether the voice key sends the mapped hotkey. Audio (VB-CABLE) isn’t affected by this switch.") }}
                 </p>
                 <div class="tip-block tip-on">
-                  <div class="tip-badge">开</div>
+                  <div class="tip-badge">{{ t("开", "On") }}</div>
                   <ul>
-                    <li>声音送到电脑</li>
-                    <li>按住语音键时发送你设好的映射快捷键</li>
+                    <li>{{ t("声音送到电脑", "Audio is sent to the PC") }}</li>
+                    <li>{{ t("按住语音键时发送你设好的映射快捷键", "Holding the voice key sends your mapped hotkey") }}</li>
                   </ul>
-                  <p class="tip-aside">适合靠快捷键开/关的语音输入法。</p>
+                  <p class="tip-aside">{{ t("适合靠快捷键开/关的语音输入法。", "For voice IMEs toggled by a hotkey.") }}</p>
                 </div>
                 <div class="tip-block tip-off">
-                  <div class="tip-badge">关</div>
+                  <div class="tip-badge">{{ t("关", "Off") }}</div>
                   <ul>
-                    <li>声音照样送到电脑</li>
-                    <li>不发送映射键（日志只记按下/抬起语音键）</li>
+                    <li>{{ t("声音照样送到电脑", "Audio is still sent to the PC") }}</li>
+                    <li>{{ t("不发送映射键（日志只记按下/抬起语音键）", "No mapped key is sent (the log only records voice key press/release)") }}</li>
                   </ul>
-                  <p class="tip-aside">听写需自行打开输入法语音。</p>
+                  <p class="tip-aside">{{ t("听写需自行打开输入法语音。", "Turn on IME voice input yourself to dictate.") }}</p>
                 </div>
               </div>
             </Teleport>
           </div>
 
           <div v-if="SHOW_VOICE_TRIGGER_MODE" class="voice-toolbar-item">
-            <span class="voice-toolbar-label">触发模式</span>
+            <span class="voice-toolbar-label">{{ t("触发模式", "Trigger mode") }}</span>
             <select
               v-model="config.trigger_mode"
               class="form-select voice-toolbar-select"
               @change="persistVoiceSettings"
             >
-              <option value="Toggle">点击</option>
-              <option value="Hold">按住</option>
+              <option value="Toggle">{{ t("点击", "Tap") }}</option>
+              <option value="Hold">{{ t("按住", "Hold") }}</option>
             </select>
             <button
               ref="triggerInfoBtn"
               type="button"
               class="title-info voice-info"
               :aria-expanded="showTriggerTip"
-              aria-label="触发模式说明"
+              :aria-label="t('触发模式说明', 'About trigger mode')"
               @mouseenter="openTriggerTip"
               @mouseleave="scheduleCloseTriggerTip"
               @focus="openTriggerTip"
@@ -2639,35 +2660,35 @@ async function retryLoadConfig() {
                 @mouseleave="scheduleCloseTriggerTip"
               >
                 <p class="tip-lead">
-                  快捷键跟随遥控器实际操作：点一下就点按，按住就按住。
+                  {{ t("快捷键跟随遥控器实际操作：点一下就点按，按住就按住。", "The hotkey mirrors the remote: tap to tap, hold to hold.") }}
                 </p>
                 <div class="tip-block tip-on">
-                  <div class="tip-badge">点击</div>
+                  <div class="tip-badge">{{ t("点击", "Tap") }}</div>
                   <ul>
-                    <li>短按语音键：点按一次映射快捷键</li>
-                    <li>长按语音键：按住映射快捷键，松手释放</li>
+                    <li>{{ t("短按语音键：点按一次映射快捷键", "Short press: taps the mapped hotkey once") }}</li>
+                    <li>{{ t("长按语音键：按住映射快捷键，松手释放", "Long press: holds the mapped hotkey until you let go") }}</li>
                   </ul>
-                  <p class="tip-aside">适合「点一下开/关」类输入法，也会正确处理长按。</p>
+                  <p class="tip-aside">{{ t("适合「点一下开/关」类输入法，也会正确处理长按。", "For tap-to-toggle IMEs; long presses work too.") }}</p>
                 </div>
                 <div class="tip-block tip-off">
-                  <div class="tip-badge">按住</div>
+                  <div class="tip-badge">{{ t("按住", "Hold") }}</div>
                   <ul>
-                    <li>按下语音键：立刻按住映射快捷键并传声</li>
-                    <li>松开语音键：释放快捷键并结束</li>
+                    <li>{{ t("按下语音键：立刻按住映射快捷键并传声", "Press: immediately holds the mapped hotkey and sends audio") }}</li>
+                    <li>{{ t("松开语音键：释放快捷键并结束", "Release: releases the hotkey and stops") }}</li>
                   </ul>
-                  <p class="tip-aside">适合「按住说话」类输入法。</p>
+                  <p class="tip-aside">{{ t("适合「按住说话」类输入法。", "For hold-to-talk IMEs.") }}</p>
                 </div>
               </div>
             </Teleport>
           </div>
 
           <div class="voice-toolbar-item">
-            <span class="voice-toolbar-label">增益 (dB)</span>
-            <div class="number-stepper" role="group" aria-label="增益分贝">
+            <span class="voice-toolbar-label">{{ t("增益 (dB)", "Gain (dB)") }}</span>
+            <div class="number-stepper" role="group" :aria-label="t('增益分贝', 'Gain in dB')">
               <button
                 type="button"
                 class="stepper-btn"
-                aria-label="减小增益"
+                :aria-label="t('减小增益', 'Decrease gain')"
                 :disabled="gainDb <= GAIN_MIN || configStore.saving || configSectionLoading"
                 @click="stepGain(-GAIN_STEP)"
               >
@@ -2686,7 +2707,7 @@ async function retryLoadConfig() {
               <button
                 type="button"
                 class="stepper-btn"
-                aria-label="增大增益"
+                :aria-label="t('增大增益', 'Increase gain')"
                 :disabled="gainDb >= GAIN_MAX || configStore.saving || configSectionLoading"
                 @click="stepGain(GAIN_STEP)"
               >
@@ -2698,7 +2719,7 @@ async function retryLoadConfig() {
               type="button"
               class="title-info voice-info"
               :aria-expanded="showGainTip"
-              aria-label="增益说明"
+              :aria-label="t('增益说明', 'About gain')"
               @mouseenter="openGainTip"
               @mouseleave="scheduleCloseGainTip"
               @focus="openGainTip"
@@ -2718,26 +2739,26 @@ async function retryLoadConfig() {
                 @mouseleave="scheduleCloseGainTip"
               >
                 <p class="tip-lead">
-                  增益 = 把遥控器麦克风声音「放大或缩小」再送进电脑（VB-CABLE）。
-                  只影响音量大小，不改变能不能说话。
+                  {{ t("增益 = 把遥控器麦克风声音「放大或缩小」再送进电脑（VB-CABLE）。", "Gain boosts or cuts the remote’s mic audio before it’s sent to the PC (VB-CABLE).") }}
+                  {{ t("只影响音量大小，不改变能不能说话。", "It only changes loudness, not whether voice works.") }}
                 </p>
                 <div class="tip-block tip-on">
-                  <div class="tip-badge">怎么调</div>
+                  <div class="tip-badge">{{ t("怎么调", "How to adjust") }}</div>
                   <ul>
-                    <li>听不清、识别漏字 → 调高（如 10 → 14）</li>
-                    <li>破音、刺耳、识别乱 → 调低（如 10 → 6）</li>
-                    <li>常用默认 <strong>10 dB</strong>；范围 -12 ～ 30</li>
+                    <li>{{ t("听不清、识别漏字 → 调高（如 10 → 14）", "Hard to hear or missed words → raise it (e.g. 10 → 14)") }}</li>
+                    <li>{{ t("破音、刺耳、识别乱 → 调低（如 10 → 6）", "Distorted, harsh or garbled → lower it (e.g. 10 → 6)") }}</li>
+                    <li>{{ t("常用默认 ", "Default ") }}<strong>10 dB</strong>{{ t("；范围 -12 ～ 30", "; range -12 to 30") }}</li>
                   </ul>
                 </div>
                 <div class="tip-block tip-off">
-                  <div class="tip-badge">注意</div>
+                  <div class="tip-badge">{{ t("注意", "Notes") }}</div>
                   <ul>
-                    <li>保存后立即生效（约 0.3 秒内自动保存），无需重启桥接</li>
-                    <li>一次加减 2～4 dB 即可，别一次拉满</li>
+                    <li>{{ t("保存后立即生效（约 0.3 秒内自动保存），无需重启桥接", "Takes effect right away (auto-saved within ~0.3 s); no bridge restart needed") }}</li>
+                    <li>{{ t("一次加减 2～4 dB 即可，别一次拉满", "Change 2–4 dB at a time; don’t max it out") }}</li>
                   </ul>
                 </div>
                 <p class="tip-foot">
-                  简单记：声音太小就加，太吵就减。
+                  {{ t("简单记：声音太小就加，太吵就减。", "Rule of thumb: too quiet, turn it up; too loud, turn it down.") }}
                 </p>
               </div>
             </Teleport>

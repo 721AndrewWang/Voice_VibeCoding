@@ -8,6 +8,7 @@ import { useBridgeStore } from "../stores/bridge";
 import { useAppUpdateStore } from "../stores/appUpdate";
 import { useGlobalSettingsStore } from "../stores/globalSettings";
 import type { BridgeStatus } from "../types";
+import { t, isEn, toggleLang } from "../i18n";
 
 const route = useRoute();
 const router = useRouter();
@@ -28,9 +29,9 @@ function statusClass(status: BridgeStatus): string {
 }
 
 const allDeviceItems = [
-  { path: "/xiaomi", label: "小米2 pro", type: "xiaomi" as const },
-  { path: "/t1", label: "T1 [开发中]", type: "t1" as const, dev: true },
-  { path: "/v60", label: "V60 [开发中]", type: "hanvon" as const, dev: true },
+  { path: "/xiaomi", label: () => t("小米2 pro", "Xiaomi 2 Pro"), type: "xiaomi" as const },
+  { path: "/t1", label: () => t("T1 [开发中]", "T1 [WIP]"), type: "t1" as const, dev: true },
+  { path: "/v60", label: () => t("V60 [开发中]", "V60 [WIP]"), type: "hanvon" as const, dev: true },
 ];
 
 const deviceItems = computed(() =>
@@ -87,9 +88,9 @@ async function confirmQuit() {
       <span class="brand-name">Voice VibeCoding</span>
       <span class="brand-ver">{{ appVersion }}</span>
       <template v-if="shouldShowPassivePrompt">
-        <span class="brand-update-badge">新版本 V{{ updateInfo!.latestVersion }}</span>
+        <span class="brand-update-badge">{{ t("新版本", "New") }} V{{ updateInfo!.latestVersion }}</span>
         <button type="button" class="brand-update-btn" @click="appUpdate.openModal()">
-          查看更新内容
+          {{ t("查看更新内容", "What's new") }}
         </button>
       </template>
     </div>
@@ -106,20 +107,28 @@ async function confirmQuit() {
           :class="['dot', statusClass(bridge.devices[item.type].status)]"
           :title="bridge.statusLabel(bridge.devices[item.type].status)"
         />
-        <span class="nav-label">{{ item.label }}</span>
+        <span class="nav-label">{{ item.label() }}</span>
       </button>
     </nav>
 
     <div class="nav-actions">
       <button
         type="button"
+        class="nav-item nav-lang"
+        :title="isEn ? '切换到中文' : 'Switch to English'"
+        @click="toggleLang()"
+      >
+        <span class="nav-label">{{ isEn ? "中文" : "EN" }}</span>
+      </button>
+      <button
+        type="button"
         :class="['nav-item', { active: isActive('/settings') }]"
         @click="navigate('/settings')"
       >
-        <span class="nav-label">设置</span>
+        <span class="nav-label">{{ t("设置", "Settings") }}</span>
       </button>
       <button type="button" class="nav-item nav-exit" @click="openQuitConfirm">
-        <span class="nav-label">退出</span>
+        <span class="nav-label">{{ t("退出", "Quit") }}</span>
       </button>
     </div>
   </header>
@@ -132,14 +141,21 @@ async function confirmQuit() {
       @click.self="cancelQuit"
     >
       <div class="quit-dialog" role="dialog" aria-modal="true" aria-labelledby="quit-title">
-        <h3 id="quit-title">退出应用？</h3>
-        <p>将彻底关闭软件（不会最小化到托盘）。确定要退出吗？</p>
+        <h3 id="quit-title">{{ t("退出应用？", "Quit app?") }}</h3>
+        <p>
+          {{
+            t(
+              "将彻底关闭软件（不会最小化到托盘）。确定要退出吗？",
+              "This fully closes the app (it will not minimize to the tray). Quit now?"
+            )
+          }}
+        </p>
         <div class="quit-actions">
           <button type="button" class="quit-btn quit-btn-ghost" :disabled="quitting" @click="cancelQuit">
-            取消
+            {{ t("取消", "Cancel") }}
           </button>
           <button type="button" class="quit-btn quit-btn-danger" :disabled="quitting" @click="confirmQuit">
-            {{ quitting ? "退出中..." : "退出" }}
+            {{ quitting ? t("退出中...", "Quitting...") : t("退出", "Quit") }}
           </button>
         </div>
       </div>

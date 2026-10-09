@@ -7,6 +7,7 @@ import { useAppUpdateStore } from "../stores/appUpdate";
 import { useGlobalSettingsStore } from "../stores/globalSettings";
 import sanodiaLogo from "../assets/mwlt_sanodia_logo.png";
 import { isLinux } from "../stores/platform";
+import { t, tb } from "../i18n";
 
 const appUpdate = useAppUpdateStore();
 const globalSettings = useGlobalSettingsStore();
@@ -45,7 +46,7 @@ async function onSettingChange() {
       router.push("/xiaomi");
     }
   } else {
-    updateHint.value = "设置保存失败，请重试";
+    updateHint.value = t("设置保存失败，请重试", "Failed to save settings, please retry");
   }
 }
 
@@ -60,24 +61,27 @@ async function openExternal(url: string) {
 
 async function checkUpdate() {
   updateChecking.value = true;
-  updateHint.value = "正在检查…";
+  updateHint.value = t("正在检查…", "Checking…");
   try {
     const result = await appUpdate.checkForUpdate(true);
     appUpdate.applyUpdateInfo(result);
     if (result.error) {
-      updateHint.value = `检查失败：${result.error}`;
+      updateHint.value = t(`检查失败：${result.error}`, `Check failed: ${tb(result.error)}`);
     } else if (result.updateAvailable) {
       if (result.promptSuppressed ?? result.ignored) {
-        updateHint.value = `发现新版本 V${result.latestVersion}（已关闭自动提醒，仍可在此更新）。`;
+        updateHint.value = t(
+          `发现新版本 V${result.latestVersion}（已关闭自动提醒，仍可在此更新）。`,
+          `New version V${result.latestVersion} (reminders off; you can still update here).`
+        );
       } else {
-        updateHint.value = `发现新版本 V${result.latestVersion}。`;
+        updateHint.value = t(`发现新版本 V${result.latestVersion}。`, `New version V${result.latestVersion} available.`);
       }
       appUpdate.openModal(true);
     } else {
-      updateHint.value = `已是最新（V${result.currentVersion}）。`;
+      updateHint.value = t(`已是最新（V${result.currentVersion}）。`, `Up to date (V${result.currentVersion}).`);
     }
   } catch (e) {
-    updateHint.value = `检查失败：${e}`;
+    updateHint.value = t(`检查失败：${e}`, `Check failed: ${tb(String(e))}`);
   } finally {
     updateChecking.value = false;
   }
@@ -88,14 +92,14 @@ async function checkUpdate() {
   <div class="page">
     <header class="page-header">
       <div class="header-left">
-        <h2>⚙️ 全局设置</h2>
+        <h2>⚙️ {{ t("全局设置", "Settings") }}</h2>
         <button
           class="btn btn-secondary"
           type="button"
           :disabled="updateChecking"
           @click="checkUpdate"
         >
-          {{ updateChecking ? "检查中…" : "检查更新" }}
+          {{ updateChecking ? t("检查中…", "Checking…") : t("检查更新", "Check for updates") }}
         </button>
         <span v-if="updateHint" class="header-update-hint">{{ updateHint }}</span>
       </div>
@@ -103,13 +107,22 @@ async function checkUpdate() {
 
     <div class="page-body">
       <section class="card">
-        <h3>通用</h3>
+        <h3>{{ t("通用", "General") }}</h3>
 
         <div class="setting-row">
           <div class="setting-info">
-            <span class="setting-label">开机自启</span>
+            <span class="setting-label">{{ t("开机自启", "Launch at login") }}</span>
             <span class="setting-desc"
-              >{{ isLinux ? "登录桌面时自动运行（~/.config/autostart）" : "Windows 登录时自动运行" }}（与下方「启动后最小化到托盘」独立；是否进托盘由该选项决定）</span
+              >{{
+                isLinux
+                  ? t("登录桌面时自动运行（~/.config/autostart）", "Run when you log in to the desktop (~/.config/autostart)")
+                  : t("Windows 登录时自动运行", "Run when you sign in to Windows")
+              }}{{
+                t(
+                  "（与下方「启动后最小化到托盘」独立；是否进托盘由该选项决定）",
+                  ". Independent of \"Start minimized to tray\" below, which decides whether it goes to the tray."
+                )
+              }}</span
             >
           </div>
           <label class="toggle">
@@ -124,9 +137,14 @@ async function checkUpdate() {
 
         <div class="setting-row">
           <div class="setting-info">
-            <span class="setting-label">启动后最小化到托盘</span>
+            <span class="setting-label">{{ t("启动后最小化到托盘", "Start minimized to tray") }}</span>
             <span class="setting-desc"
-              >关：手动打开/开机自启/再点图标 → 显示窗口。开：上述情况均进托盘（无窗口、无任务栏）；点托盘图标可打开。仅对下次启动生效，不改变当前窗口状态</span
+              >{{
+                t(
+                  "关：手动打开/开机自启/再点图标 → 显示窗口。开：上述情况均进托盘（无窗口、无任务栏）；点托盘图标可打开。仅对下次启动生效，不改变当前窗口状态",
+                  "Off: opening manually, at login, or clicking the icon again shows the window. On: all of these go to the tray (no window, no taskbar); click the tray icon to open. Applies from next launch; the current window is unchanged."
+                )
+              }}</span
             >
           </div>
           <label class="toggle">
@@ -141,9 +159,14 @@ async function checkUpdate() {
 
         <div class="setting-row">
           <div class="setting-info">
-            <span class="setting-label">最小化到托盘</span>
+            <span class="setting-label">{{ t("最小化到托盘", "Minimize to tray") }}</span>
             <span class="setting-desc"
-              >点关闭按钮时进托盘（不占任务栏，可点托盘再打开）。关闭此项后，关窗即退出软件</span
+              >{{
+                t(
+                  "点关闭按钮时进托盘（不占任务栏，可点托盘再打开）。关闭此项后，关窗即退出软件",
+                  "The close button sends the app to the tray (off the taskbar; click the tray icon to reopen). When off, closing the window quits the app."
+                )
+              }}</span
             >
           </div>
           <label class="toggle">
@@ -158,9 +181,9 @@ async function checkUpdate() {
 
         <div class="setting-row">
           <div class="setting-info">
-            <span class="setting-label">隐藏开发中项目菜单</span>
+            <span class="setting-label">{{ t("隐藏开发中项目菜单", "Hide WIP device menus") }}</span>
             <span class="setting-desc"
-              >开启后隐藏顶部 T1、V60 菜单；关闭则显示</span
+              >{{ t("开启后隐藏顶部 T1、V60 菜单；关闭则显示", "When on, hides the T1 and V60 menus in the top bar") }}</span
             >
           </div>
           <label class="toggle">
@@ -175,7 +198,7 @@ async function checkUpdate() {
       </section>
 
       <section class="card credit-card">
-        <h3>版本信息</h3>
+        <h3>{{ t("版本信息", "About") }}</h3>
         <div class="credit-layout">
           <div class="credit-logo-wrap">
             <img
@@ -188,9 +211,12 @@ async function checkUpdate() {
             <div class="credit-row">
               <div class="credit-col">
                 <p class="credit-lead">
-                  本软件 : Rust+tauri2+vue3 {{ isLinux ? "Windows / Linux 版" : "Windows版" }}（基于 Python 版本重构）
+                  {{ t("本软件", "This app") }} : Rust+tauri2+vue3
+                  {{ isLinux ? t("Windows / Linux 版", "for Windows / Linux") : t("Windows版", "for Windows") }}{{
+                    t("（基于 Python 版本重构）", " (rewrite of the Python version)")
+                  }}
                 </p>
-                <p class="credit-author">作者：mwlt</p>
+                <p class="credit-author">{{ t("作者：", "Author: ") }}mwlt</p>
                 <div class="credit-block">
                   <span class="credit-k">Gitee</span>
                   <button
@@ -213,8 +239,8 @@ async function checkUpdate() {
                 </div>
               </div>
               <div class="credit-col">
-                <p class="credit-lead">Python Windows 版</p>
-                <p class="credit-author">作者：xxb26553663-star</p>
+                <p class="credit-lead">{{ t("Python Windows 版", "Python version for Windows") }}</p>
+                <p class="credit-author">{{ t("作者：", "Author: ") }}xxb26553663-star</p>
                 <div class="credit-block">
                   <span class="credit-k">GitHub</span>
                   <button
@@ -229,8 +255,8 @@ async function checkUpdate() {
             </div>
             <div class="credit-row credit-row-divider">
               <div class="credit-col">
-                <p class="credit-lead">Apple macOS 版</p>
-                <p class="credit-author">作者：nijez</p>
+                <p class="credit-lead">{{ t("Apple macOS 版", "Apple macOS version") }}</p>
+                <p class="credit-author">{{ t("作者：", "Author: ") }}nijez</p>
                 <div class="credit-block">
                   <span class="credit-k">GitHub</span>
                   <button
@@ -243,8 +269,8 @@ async function checkUpdate() {
                 </div>
               </div>
               <div class="credit-col">
-                <p class="credit-lead">Rust 语言 Windows 版</p>
-                <p class="credit-author">作者：LightyearXizIl</p>
+                <p class="credit-lead">{{ t("Rust 语言 Windows 版", "Rust version for Windows") }}</p>
+                <p class="credit-author">{{ t("作者：", "Author: ") }}LightyearXizIl</p>
                 <div class="credit-block">
                   <span class="credit-k">GitHub</span>
                   <button
@@ -264,7 +290,7 @@ async function checkUpdate() {
 
     <Teleport to="body">
       <div v-if="toastVisible" class="settings-toast" role="status">
-        设置已保存
+        {{ t("设置已保存", "Settings saved") }}
       </div>
     </Teleport>
   </div>

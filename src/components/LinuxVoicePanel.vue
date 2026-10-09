@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { t, tb, isEn } from "../i18n";
 
 type VoiceMode = "asr" | "virtual_mic";
 type PasteMethod = "shift_insert" | "ctrl_v" | "ctrl_shift_v";
@@ -83,28 +84,29 @@ const actionError = ref("");
 const unlisteners: UnlistenFn[] = [];
 let statusTimer: ReturnType<typeof setInterval> | null = null;
 
-const languages = [
-  { id: "auto", label: "自动（中英混说）" },
-  { id: "zh", label: "普通话" },
-  { id: "en", label: "英语" },
-  { id: "yue", label: "粤语" },
-  { id: "ja", label: "日语" },
-  { id: "ko", label: "韩语" },
-];
+const languages = computed(() => [
+  { id: "auto", label: t("自动（中英混说）", "Auto (mixed Chinese/English)") },
+  { id: "zh", label: t("普通话", "Mandarin") },
+  { id: "en", label: t("英语", "English") },
+  { id: "yue", label: t("粤语", "Cantonese") },
+  { id: "ja", label: t("日语", "Japanese") },
+  { id: "ko", label: t("韩语", "Korean") },
+]);
 
-const idleOptions = [
-  { minutes: 5, label: "5 分钟" },
-  { minutes: 10, label: "10 分钟" },
-  { minutes: 30, label: "30 分钟" },
-  { minutes: 60, label: "1 小时" },
-  { minutes: 0, label: "不释放（常驻内存）" },
-];
+/** 空闲多久释放：label 是下拉里的完整文字 */
+const idleOptions = computed(() => [
+  { minutes: 5, label: t("5 分钟没说话就释放", "After 5 min idle") },
+  { minutes: 10, label: t("10 分钟没说话就释放", "After 10 min idle") },
+  { minutes: 30, label: t("30 分钟没说话就释放", "After 30 min idle") },
+  { minutes: 60, label: t("1 小时没说话就释放", "After 1 hour idle") },
+  { minutes: 0, label: t("不释放（常驻内存）", "Never (keep loaded)") },
+]);
 
-const pasteMethods: { id: PasteMethod; label: string }[] = [
-  { id: "shift_insert", label: "Shift+Insert（推荐，终端也能用）" },
+const pasteMethods = computed<{ id: PasteMethod; label: string }[]>(() => [
+  { id: "shift_insert", label: t("Shift+Insert（推荐，终端也能用）", "Shift+Insert (recommended, works in terminals)") },
   { id: "ctrl_v", label: "Ctrl+V" },
-  { id: "ctrl_shift_v", label: "Ctrl+Shift+V（部分终端）" },
-];
+  { id: "ctrl_shift_v", label: t("Ctrl+Shift+V（部分终端）", "Ctrl+Shift+V (some terminals)") },
+]);
 
 const currentModel = computed(() =>
   models.value.find((m) => m.id === settings.value?.asr_model)
@@ -113,20 +115,20 @@ const currentModel = computed(() =>
 const downloadingTitle = computed(() => {
   const id = asr.value?.downloadingModel;
   if (!id) return "";
-  return models.value.find((m) => m.id === id)?.title ?? id;
+  return tb(models.value.find((m) => m.id === id)?.title ?? id);
 });
 
 const asrStateText = computed(() => {
   const s = asr.value;
-  if (!s) return "检测中…";
+  if (!s) return t("检测中…", "Checking…");
   if (s.downloading) {
     const p = download.value?.percent ?? 0;
-    return `下载中 ${p.toFixed(0)}%`;
+    return t(`下载中 ${p.toFixed(0)}%`, `Downloading ${p.toFixed(0)}%`);
   }
-  if (s.loaded) return "已就绪";
-  if (s.loading) return "加载中…";
-  if (s.installed) return "已下载（按语音键时自动加载）";
-  return "未下载";
+  if (s.loaded) return t("已就绪", "Ready");
+  if (s.loading) return t("加载中…", "Loading…");
+  if (s.installed) return t("已下载（按语音键时自动加载）", "Downloaded (loads when you press the voice key)");
+  return t("未下载", "Not downloaded");
 });
 
 const asrStateTone = computed(() => {
@@ -172,7 +174,7 @@ async function save(patch: Partial<LinuxVoiceSettings>) {
     });
     await refreshAsr();
   } catch (e) {
-    saveError.value = `保存失败：${e}`;
+    saveError.value = t(`保存失败：${e}`, `Save failed: ${tb(String(e))}`);
   }
 }
 
@@ -263,11 +265,16 @@ onUnmounted(() => {
 <template>
   <section class="card linux-voice">
     <div class="lv-head">
-      <h3>语音输出</h3>
-      <span class="lv-sub">Linux 上没有微信/豆包输入法的语音听写，语音键说的话由这里处理</span>
+      <h3>{{ t("语音输出", "Voice output") }}</h3>
+      <span class="lv-sub">{{
+        t(
+          "Linux 上没有微信/豆包输入法的语音听写，语音键说的话由这里处理",
+          "Linux has no WeChat/Doubao IME voice dictation, so speech from the voice key is handled here"
+        )
+      }}</span>
     </div>
 
-    <div v-if="settings" class="lv-modes" role="radiogroup" aria-label="语音输出方式">
+    <div v-if="settings" class="lv-modes" role="radiogroup" :aria-label="t('语音输出方式', 'Voice output mode')">
       <label class="lv-mode" :class="{ 'is-active': settings.voice_mode === 'asr' }">
         <input
           type="radio"
@@ -276,9 +283,14 @@ onUnmounted(() => {
           :checked="settings.voice_mode === 'asr'"
           @change="save({ voice_mode: 'asr' })"
         />
-        <span class="lv-mode-title">本地识别上屏（推荐）</span>
+        <span class="lv-mode-title">{{ t("本地识别上屏（推荐）", "Local recognition, paste at cursor (recommended)") }}</span>
         <span class="lv-mode-desc">
-          按住语音键说话，松手后在本机离线识别，文字直接粘贴到当前输入框；中英混说也能认。
+          {{
+            t(
+              "按住语音键说话，松手后在本机离线识别，文字直接粘贴到当前输入框；中英混说也能认。",
+              "Hold the voice key and speak; on release it is recognized offline on this machine and pasted into the focused field. Mixed Chinese/English works too."
+            )
+          }}
         </span>
       </label>
       <label class="lv-mode" :class="{ 'is-active': settings.voice_mode === 'virtual_mic' }">
@@ -289,9 +301,14 @@ onUnmounted(() => {
           :checked="settings.voice_mode === 'virtual_mic'"
           @change="save({ voice_mode: 'virtual_mic' })"
         />
-        <span class="lv-mode-title">虚拟麦克风 + 快捷键</span>
+        <span class="lv-mode-title">{{ t("虚拟麦克风 + 快捷键", "Virtual mic + shortcut") }}</span>
         <span class="lv-mode-desc">
-          与 Windows 版相同：语音送进「Voice VibeCoding 遥控器麦克风」，同时按住下方映射的语音快捷键。
+          {{
+            t(
+              "与 Windows 版相同：语音送进「Voice VibeCoding 遥控器麦克风」，同时按住下方映射的语音快捷键。",
+              "Same as the Windows version: audio goes to the \"Voice VibeCoding 遥控器麦克风\" mic (the remote mic) while the voice shortcut mapped below is held."
+            )
+          }}
         </span>
       </label>
     </div>
@@ -299,13 +316,13 @@ onUnmounted(() => {
     <div v-if="settings && settings.voice_mode === 'asr'" class="lv-block">
       <div class="lv-row">
         <label class="lv-field lv-model">
-          <span class="lv-label">识别模型</span>
+          <span class="lv-label">{{ t("识别模型", "Model") }}</span>
           <select
             :value="settings.asr_model"
             @change="save({ asr_model: ($event.target as HTMLSelectElement).value })"
           >
             <option v-for="m in models" :key="m.id" :value="m.id">
-              {{ m.title }}{{ m.installed ? "" : "（未下载）" }}
+              {{ tb(m.title) }}{{ m.installed ? "" : t("（未下载）", " (not downloaded)") }}
             </option>
           </select>
         </label>
@@ -317,7 +334,8 @@ onUnmounted(() => {
           :disabled="!!asr.downloadingModel"
           @click="startDownload(settings.asr_model)"
         >
-          下载模型{{ currentModel ? `（${currentModel.sizeMb} MB）` : "" }}
+          {{ t("下载模型", "Download model")
+          }}{{ currentModel ? t(`（${currentModel.sizeMb} MB）`, ` (${currentModel.sizeMb} MB)`) : "" }}
         </button>
         <button
           v-if="asr?.downloading"
@@ -325,29 +343,31 @@ onUnmounted(() => {
           type="button"
           @click="cancelDownload"
         >
-          取消
+          {{ t("取消", "Cancel") }}
         </button>
         <button class="btn btn-secondary btn-small" type="button" @click="openModelsFolder">
-          打开模型目录
+          {{ t("打开模型目录", "Open models folder") }}
         </button>
       </div>
       <p v-if="currentModel" class="lv-note">
-        {{ currentModel.note }}
-        <template v-if="!currentModel.installed"> · 需下载约 {{ currentModel.sizeMb }} MB</template>
+        {{ tb(currentModel.note) }}
+        <template v-if="!currentModel.installed">
+          · {{ t(`需下载约 ${currentModel.sizeMb} MB`, `~${currentModel.sizeMb} MB download`) }}</template
+        >
       </p>
       <div v-if="asr?.downloadingModel && download" class="lv-progress">
         <div class="lv-progress-bar" :style="{ width: `${download.percent.toFixed(1)}%` }" />
         <span class="lv-progress-text">
           <template v-if="!asr.downloading">{{ downloadingTitle }} · </template>
-          {{ download.percent.toFixed(1) }}% · {{ formatSpeed(download.speed) }} · {{ download.source }}
+          {{ download.percent.toFixed(1) }}% · {{ formatSpeed(download.speed) }} · {{ tb(download.source) }}
         </span>
       </div>
-      <p v-if="downloadError" class="lv-error">下载失败：{{ downloadError }}</p>
-      <p v-if="asr?.error && !asr.downloading" class="lv-error">{{ asr.error }}</p>
+      <p v-if="downloadError" class="lv-error">{{ t("下载失败：", "Download failed: ") }}{{ tb(downloadError) }}</p>
+      <p v-if="asr?.error && !asr.downloading" class="lv-error">{{ tb(asr.error) }}</p>
 
       <div class="lv-grid">
         <label v-if="currentModel?.supportsLanguage" class="lv-field">
-          <span class="lv-label">识别语言</span>
+          <span class="lv-label">{{ t("识别语言", "Language") }}</span>
           <select
             :value="settings.asr_language"
             @change="save({ asr_language: ($event.target as HTMLSelectElement).value })"
@@ -356,7 +376,7 @@ onUnmounted(() => {
           </select>
         </label>
         <label class="lv-field">
-          <span class="lv-label">上屏方式</span>
+          <span class="lv-label">{{ t("上屏方式", "Paste method") }}</span>
           <select
             :value="settings.paste_method"
             @change="
@@ -372,7 +392,7 @@ onUnmounted(() => {
             :checked="settings.restore_clipboard"
             @change="save({ restore_clipboard: ($event.target as HTMLInputElement).checked })"
           />
-          粘贴后恢复原剪贴板
+          {{ t("粘贴后恢复原剪贴板", "Restore clipboard after paste") }}
         </label>
         <label class="lv-check">
           <input
@@ -380,10 +400,10 @@ onUnmounted(() => {
             :checked="settings.strip_trailing_period"
             @change="save({ strip_trailing_period: ($event.target as HTMLInputElement).checked })"
           />
-          去掉句末句号
+          {{ t("去掉句末句号", "Strip trailing period") }}
         </label>
         <label class="lv-field">
-          <span class="lv-label">空闲释放内存</span>
+          <span class="lv-label">{{ t("空闲释放内存", "Free memory when idle") }}</span>
           <select
             :value="settings.asr_idle_unload_minutes"
             @change="
@@ -393,67 +413,94 @@ onUnmounted(() => {
             "
           >
             <option v-for="o in idleOptions" :key="o.minutes" :value="o.minutes">
-              {{ o.minutes ? `${o.label}没说话就释放` : o.label }}
+              {{ o.label }}
             </option>
           </select>
         </label>
         <label v-if="currentModel?.supportsHotwords" class="lv-field lv-span">
-          <span class="lv-label">热词</span>
+          <span class="lv-label">{{ t("热词", "Hotwords") }}</span>
           <input
             type="text"
             :value="settings.asr_hotwords"
-            placeholder="可选，逗号分隔，如：Claude, tokio, BlueZ"
+            :placeholder="t('可选，逗号分隔，如：Claude, tokio, BlueZ', 'Optional, comma-separated, e.g. Claude, tokio, BlueZ')"
             spellcheck="false"
             @change="onTextSetting('asr_hotwords', $event)"
           />
         </label>
         <p v-if="currentModel?.supportsHotwords" class="lv-note lv-span">
-          热词能把常错的专有名词认对，但写得越多，container、server 这类普通英文词越容易被意译成中文；只写几个总认错的名字即可。
+          {{
+            t(
+              "热词能把常错的专有名词认对，但写得越多，container、server 这类普通英文词越容易被意译成中文；只写几个总认错的名字即可。",
+              "Hotwords fix names that are often misheard, but the more you add, the more plain English words like container or server get translated into Chinese. List only a few names that keep going wrong."
+            )
+          }}
         </p>
         <label class="lv-field lv-span lv-field-top">
-          <span class="lv-label">识别后替换</span>
+          <span class="lv-label">{{ t("识别后替换", "Replacements") }}</span>
           <textarea
             rows="3"
             :value="settings.asr_replacements"
-            placeholder="每行一条：原文 => 替换为"
+            :placeholder="t('每行一条：原文 => 替换为', 'One per line: original => replacement')"
             spellcheck="false"
             @change="onTextSetting('asr_replacements', $event)"
           />
         </label>
-        <p class="lv-note lv-span">每行一条「原文 =&gt; 替换为」，英文不区分大小写；用来固定纠正总是认错的词。</p>
+        <p class="lv-note lv-span">
+          {{
+            t(
+              "每行一条「原文 => 替换为」，英文不区分大小写；用来固定纠正总是认错的词。",
+              "One rule per line: \"original => replacement\". English is case-insensitive. Use it to fix words that are always misrecognized."
+            )
+          }}
+        </p>
       </div>
 
       <div class="lv-result" :class="{ 'is-empty': !lastResult }">
-        <span class="lv-label">最近一次识别</span>
+        <span class="lv-label">{{ t("最近一次识别", "Last result") }}</span>
         <template v-if="lastResult">
           <span v-if="lastResult.text" class="lv-result-text">{{ lastResult.text }}</span>
-          <span v-else class="lv-result-empty">{{ lastResult.error || "（无内容）" }}</span>
+          <span v-else class="lv-result-empty">{{ lastResult.error ? tb(lastResult.error) : t("（无内容）", "(empty)") }}</span>
           <span class="lv-result-meta">
-            语音 {{ (lastResult.audioMs / 1000).toFixed(1) }}s · 识别 {{ lastResult.asrMs }}ms
-            <template v-if="lastResult.text && !lastResult.ok"> · 上屏失败：{{ lastResult.error }}</template>
+            {{ t("语音", "Audio") }} {{ (lastResult.audioMs / 1000).toFixed(1) }}s ·
+            {{ t("识别", "ASR") }} {{ lastResult.asrMs }}ms
+            <template v-if="lastResult.text && !lastResult.ok">
+              · {{ t("上屏失败：", "Paste failed: ") }}{{ tb(lastResult.error) }}</template
+            >
           </span>
         </template>
-        <span v-else class="lv-result-empty">按住遥控器语音键说一句话试试</span>
+        <span v-else class="lv-result-empty">{{ t("按住遥控器语音键说一句话试试", "Hold the remote's voice key and say something") }}</span>
       </div>
     </div>
 
     <div v-if="settings && settings.voice_mode === 'virtual_mic'" class="lv-block">
       <p class="lv-hint">
-        在需要语音输入的软件里，把麦克风选成 <b>Voice VibeCoding 遥控器麦克风</b>
-        （也可在「设置 → 声音 → 输入」里设为默认）。按住遥控器语音键时，本软件会同时按住下方「语音」键映射的快捷键。
+        <template v-if="isEn">
+          In the app where you want voice input, choose <b>Voice VibeCoding 遥控器麦克风</b> (the remote mic) as the
+          microphone (or make it the default under Settings → Sound → Input). While the remote's voice key is held, this
+          app also holds the shortcut mapped to the "Voice" key below.
+        </template>
+        <template v-else>
+          在需要语音输入的软件里，把麦克风选成 <b>Voice VibeCoding 遥控器麦克风</b>
+          （也可在「设置 → 声音 → 输入」里设为默认）。按住遥控器语音键时，本软件会同时按住下方「语音」键映射的快捷键。
+        </template>
       </p>
     </div>
 
     <div class="lv-block lv-bt">
       <div class="lv-row">
-        <span class="lv-label">蓝牙配对</span>
+        <span class="lv-label">{{ t("蓝牙配对", "Bluetooth pairing") }}</span>
         <span class="lv-value">
-          在系统蓝牙设置里添加「MI RC」：同时长按遥控器「主页」+「菜单」键约 3 秒进入配对模式。
+          {{
+            t(
+              "在系统蓝牙设置里添加「MI RC」：同时长按遥控器「主页」+「菜单」键约 3 秒进入配对模式。",
+              "Add \"MI RC\" in the system Bluetooth settings: hold the remote's Home + Menu keys for about 3 s to enter pairing mode."
+            )
+          }}
         </span>
       </div>
       <div class="lv-row">
         <button class="btn btn-secondary btn-small" type="button" @click="openBluetoothSettings">
-          打开蓝牙设置
+          {{ t("打开蓝牙设置", "Open Bluetooth settings") }}
         </button>
         <button
           class="btn btn-secondary btn-small"
@@ -461,28 +508,30 @@ onUnmounted(() => {
           :disabled="diagLoading"
           @click="runDiagnostics"
         >
-          {{ diagLoading ? "检测中…" : "蓝牙诊断" }}
+          {{ diagLoading ? t("检测中…", "Checking…") : t("蓝牙诊断", "Bluetooth diagnostics") }}
         </button>
       </div>
       <div v-if="diag" class="lv-diag">
-        <p v-if="diag.error" class="lv-error">{{ diag.error }}</p>
+        <p v-if="diag.error" class="lv-error">{{ tb(diag.error) }}</p>
         <p v-else>
-          适配器 {{ diag.adapter }} · {{ diag.powered ? "已开启" : "已关闭" }} · 已知设备
-          {{ diag.devices.length }} 个
+          {{ t("适配器", "Adapter") }} {{ diag.adapter }} ·
+          {{ diag.powered ? t("已开启", "On") : t("已关闭", "Off") }} ·
+          {{ t(`已知设备 ${diag.devices.length} 个`, `${diag.devices.length} known device(s)`) }}
         </p>
         <ul v-if="diag.devices.length">
           <li v-for="d in diag.devices" :key="d.address" :class="{ 'is-remote': d.hasAtvv }">
-            <b>{{ d.name || "(无名称)" }}</b> {{ d.address }} ·
-            {{ d.paired ? "已配对" : "未配对" }} · {{ d.connected ? "已连接" : "未连接" }}
-            <template v-if="d.hasAtvv"> · 有 ATVV 语音服务</template>
-            <template v-if="d.battery != null"> · 电量 {{ d.battery }}%</template>
+            <b>{{ d.name || t("(无名称)", "(no name)") }}</b> {{ d.address }} ·
+            {{ d.paired ? t("已配对", "Paired") : t("未配对", "Not paired") }} ·
+            {{ d.connected ? t("已连接", "Connected") : t("未连接", "Disconnected") }}
+            <template v-if="d.hasAtvv"> · {{ t("有 ATVV 语音服务", "ATVV voice service") }}</template>
+            <template v-if="d.battery != null"> · {{ t("电量", "Battery") }} {{ d.battery }}%</template>
           </li>
         </ul>
       </div>
     </div>
 
-    <p v-if="saveError" class="lv-error">{{ saveError }}</p>
-    <p v-if="actionError" class="lv-error">{{ actionError }}</p>
+    <p v-if="saveError" class="lv-error">{{ tb(saveError) }}</p>
+    <p v-if="actionError" class="lv-error">{{ tb(actionError) }}</p>
   </section>
 </template>
 

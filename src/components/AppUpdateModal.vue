@@ -2,6 +2,7 @@
 import { storeToRefs } from "pinia";
 import { useAppUpdateStore } from "../stores/appUpdate";
 import { isLinux } from "../stores/platform";
+import { t, tb, isEn } from "../i18n";
 
 const store = useAppUpdateStore();
 const {
@@ -37,19 +38,30 @@ function progressWidth(): string {
         aria-labelledby="app-update-title"
       >
         <div class="update-dialog-scroll">
-          <h3 id="app-update-title">发现新版本 V{{ updateInfo.latestVersion }}</h3>
+          <h3 id="app-update-title">{{ t("发现新版本", "New version") }} V{{ updateInfo.latestVersion }}</h3>
           <p v-if="isLinux" class="update-intro">
-            当前版本 V{{ updateInfo.currentVersion }}。上游只发布 Windows 安装包；Linux 版请在源码目录执行
-            <code>git pull</code> 后重新运行 <code>linux/install.sh</code>（配置会保留）。
+            <template v-if="isEn">
+              Current version V{{ updateInfo.currentVersion }}. Upstream only ships Windows installers; on Linux, run
+              <code>git pull</code> in the source folder, then re-run <code>linux/install.sh</code> (settings are kept).
+            </template>
+            <template v-else>
+              当前版本 V{{ updateInfo.currentVersion }}。上游只发布 Windows 安装包；Linux 版请在源码目录执行
+              <code>git pull</code> 后重新运行 <code>linux/install.sh</code>（配置会保留）。
+            </template>
           </p>
           <p v-else class="update-intro">
-            当前版本 V{{ updateInfo.currentVersion }}。点击「下载并安装」后将自动静默升级（保留配置）：下载完成后会退出本程序，显示升级进度窗，装完后自动打开。过程中除 Windows 权限确认（UAC）外无其它弹框。
+            {{
+              t(
+                `当前版本 V${updateInfo.currentVersion}。点击「下载并安装」后将自动静默升级（保留配置）：下载完成后会退出本程序，显示升级进度窗，装完后自动打开。过程中除 Windows 权限确认（UAC）外无其它弹框。`,
+                `Current version V${updateInfo.currentVersion}. "Download & install" upgrades silently (settings kept): after the download the app quits, shows an upgrade progress window, and reopens when done. No prompts other than the Windows permission (UAC) dialog.`
+              )
+            }}
           </p>
           <p v-if="updateInfo.promptSuppressed" class="update-suppressed-hint" role="note">
-            您已关闭此版本的自动提醒；仍可在此下载安装。
+            {{ t("您已关闭此版本的自动提醒；仍可在此下载安装。", "Reminders for this version are off; you can still download it here.") }}
           </p>
-          <section v-if="updateInfo.notes" class="update-notes-block" aria-label="更新内容">
-            <h4 class="update-notes-heading">更新内容</h4>
+          <section v-if="updateInfo.notes" class="update-notes-block" :aria-label="t('更新内容', 'Release notes')">
+            <h4 class="update-notes-heading">{{ t("更新内容", "Release notes") }}</h4>
             <p class="update-notes">{{ updateInfo.notes }}</p>
           </section>
         </div>
@@ -64,10 +76,10 @@ function progressWidth(): string {
             <span class="update-progress-label">
               {{
                 downloadPhase === "downloading"
-                  ? "正在下载…"
+                  ? t("正在下载…", "Downloading…")
                   : downloadPhase === "complete"
-                    ? "下载完成"
-                    : "下载失败"
+                    ? t("下载完成", "Download complete")
+                    : t("下载失败", "Download failed")
               }}
             </span>
             <span v-if="downloadPhase === 'downloading'" class="update-progress-meta">
@@ -83,7 +95,7 @@ function progressWidth(): string {
               :style="{ width: progressWidth() }"
             />
           </div>
-          <p v-if="downloadMessage" class="update-progress-msg">{{ downloadMessage }}</p>
+          <p v-if="downloadMessage" class="update-progress-msg">{{ tb(downloadMessage) }}</p>
         </div>
 
         <div class="update-actions">
@@ -94,7 +106,13 @@ function progressWidth(): string {
             :disabled="isDownloading || downloadPhase === 'complete'"
             @click="store.startDownload()"
           >
-            {{ isDownloading ? "下载中…" : downloadPhase === "complete" ? "正在升级…" : "下载并安装" }}
+            {{
+              isDownloading
+                ? t("下载中…", "Downloading…")
+                : downloadPhase === "complete"
+                  ? t("正在升级…", "Upgrading…")
+                  : t("下载并安装", "Download & install")
+            }}
           </button>
           <button
             class="update-btn update-btn-secondary"
@@ -102,7 +120,7 @@ function progressWidth(): string {
             :disabled="isDownloading"
             @click="store.openUpdateLink('gitee')"
           >
-            去 Gitee 下载
+            {{ t("去 Gitee 下载", "Get from Gitee") }}
           </button>
           <button
             class="update-btn update-btn-secondary"
@@ -110,7 +128,7 @@ function progressWidth(): string {
             :disabled="isDownloading"
             @click="store.openUpdateLink('github')"
           >
-            去 GitHub 下载
+            {{ t("去 GitHub 下载", "Get from GitHub") }}
           </button>
           <button
             class="update-btn update-btn-secondary"
@@ -118,7 +136,7 @@ function progressWidth(): string {
             :disabled="isDownloading"
             @click="store.ignoreCurrentUpdate()"
           >
-            不再提醒此版本
+            {{ t("不再提醒此版本", "Skip this version") }}
           </button>
           <button
             class="update-btn update-btn-secondary"
@@ -126,7 +144,7 @@ function progressWidth(): string {
             :disabled="isDownloading"
             @click="store.closeModal()"
           >
-            关闭
+            {{ t("关闭", "Close") }}
           </button>
         </div>
       </div>

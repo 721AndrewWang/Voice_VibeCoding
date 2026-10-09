@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { t } from "../i18n";
 import {
   CABLE_VOL_DB_HIGH,
   CABLE_VOL_DB_LOW,
@@ -34,9 +35,9 @@ const zoneOkWidth = cableDbToPct(CABLE_VOL_DB_HIGH) - zoneLowWidth;
 const zoneHighWidth = 100 - cableDbToPct(CABLE_VOL_DB_HIGH);
 
 const ariaLabel = computed(() => {
-  if (props.disabled) return "虚拟声卡音量标尺（未就绪）";
-  if (!props.active) return "虚拟声卡音量标尺：无信号";
-  return `虚拟声卡音量 ${Math.round(db.value)} dBFS`;
+  if (props.disabled) return t("虚拟声卡音量标尺（未就绪）", "Virtual sound card level (not ready)");
+  if (!props.active) return t("虚拟声卡音量标尺：无信号", "Virtual sound card level: no signal");
+  return t(`虚拟声卡音量 ${Math.round(db.value)} dBFS`, `Virtual sound card level ${Math.round(db.value)} dBFS`);
 });
 </script>
 

@@ -12,7 +12,13 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { DeviceConfig, KeyAction } from "../types";
 import RemoteHotspot from "./RemoteHotspot.vue";
 import RemoteKeyIcon from "./RemoteKeyIcon.vue";
-import { MEDIA_PICK_KEYS, vkDisplayName } from "../utils/vkDisplay";
+import {
+  MEDIA_PICK_KEYS,
+  keyLabelDisplay,
+  remoteButtonLabel,
+  vkDisplayName,
+} from "../utils/vkDisplay";
+import { t, tb } from "../i18n";
 import {
   applyImePresetConfig,
   VOICE_QUICK_PRESETS,
@@ -150,7 +156,7 @@ function setCardRef(id: string, el: unknown) {
 }
 
 function labelOf(id: string): string {
-  return props.config.button_aliases?.[id] || DEFAULT_LABELS[id] || id;
+  return remoteButtonLabel(props.config.button_aliases?.[id] || DEFAULT_LABELS[id] || id);
 }
 
 function actionOf(id: string): KeyAction {
@@ -160,14 +166,14 @@ function actionOf(id: string): KeyAction {
 }
 
 function actionLabel(action: KeyAction): string {
-  if (!action || action.type === "None") return "未绑定";
+  if (!action || action.type === "None") return t("未绑定", "Unbound");
   if (action.type === "SingleKey") return vkDisplayName(Number(action.value));
   if (action.type === "ComboKey") {
     const arr = Array.isArray(action.value) ? action.value : [];
     return arr.map((v) => vkDisplayName(Number(v))).join(" + ");
   }
-  if (action.type === "TextInput") return `文字: ${action.value}`;
-  if (action.type === "LaunchApp") return `启动: ${action.value}`;
+  if (action.type === "TextInput") return t(`文字: ${action.value}`, `Text: ${action.value}`);
+  if (action.type === "LaunchApp") return t(`启动: ${action.value}`, `Launch: ${action.value}`);
   return "—";
 }
 
@@ -594,7 +600,7 @@ onUnmounted(() => {
               :disabled="capturing && selectedId !== btn.id"
               @click="startCapture"
             >
-              {{ capturing && selectedId === btn.id ? "取消录入" : "录入" }}
+              {{ capturing && selectedId === btn.id ? t("取消录入", "Cancel") : t("录入", "Record") }}
             </button>
             <button
               v-if="btn.action.type !== 'None'"
@@ -603,7 +609,7 @@ onUnmounted(() => {
               :disabled="capturing"
               @click="clearBinding(btn.id)"
             >
-              清除
+              {{ t("清除", "Clear") }}
             </button>
             <p
               v-if="capturing && selectedId === btn.id"
@@ -612,15 +618,15 @@ onUnmounted(() => {
             >
               {{
                 liveLabels.length
-                  ? liveLabels.join(" + ") + " …"
-                  : "请按目标键或组合键"
+                  ? liveLabels.map(keyLabelDisplay).join(" + ") + " …"
+                  : t("请按目标键或组合键", "Press a key or key combo")
               }}
             </p>
             <div
               v-if="capturing && selectedId === btn.id"
               class="media-pick"
             >
-              <span class="media-pick-label">设置为：</span>
+              <span class="media-pick-label">{{ t("设置为：", "Set to:") }}</span>
               <button
                 v-for="k in MEDIA_PICK_KEYS"
                 :key="k.vk"
@@ -632,7 +638,7 @@ onUnmounted(() => {
               </button>
             </div>
             <p v-if="captureError && selectedId === btn.id" class="capture-err">
-              {{ captureError }}
+              {{ tb(captureError) }}
             </p>
           </div>
         </div>
@@ -686,7 +692,7 @@ onUnmounted(() => {
               :disabled="capturing && selectedId !== btn.id"
               @click="startCapture"
             >
-              {{ capturing && selectedId === btn.id ? "取消录入" : "录入" }}
+              {{ capturing && selectedId === btn.id ? t("取消录入", "Cancel") : t("录入", "Record") }}
             </button>
             <button
               v-if="btn.action.type !== 'None'"
@@ -695,7 +701,7 @@ onUnmounted(() => {
               :disabled="capturing"
               @click="clearBinding(btn.id)"
             >
-              清除
+              {{ t("清除", "Clear") }}
             </button>
             <p
               v-if="capturing && selectedId === btn.id"
@@ -704,15 +710,15 @@ onUnmounted(() => {
             >
               {{
                 liveLabels.length
-                  ? liveLabels.join(" + ") + " …"
-                  : "请按目标键或组合键"
+                  ? liveLabels.map(keyLabelDisplay).join(" + ") + " …"
+                  : t("请按目标键或组合键", "Press a key or key combo")
               }}
             </p>
             <div
               v-if="capturing && selectedId === btn.id"
               class="media-pick"
             >
-              <span class="media-pick-label">设置为：</span>
+              <span class="media-pick-label">{{ t("设置为：", "Set to:") }}</span>
               <button
                 v-for="k in MEDIA_PICK_KEYS"
                 :key="k.vk"
@@ -724,13 +730,13 @@ onUnmounted(() => {
               </button>
             </div>
             <p v-if="captureError && selectedId === btn.id" class="capture-err">
-              {{ captureError }}
+              {{ tb(captureError) }}
             </p>
           </div>
         </div>
 
-        <div class="voice-quick-setup" aria-label="语音键快速设置">
-          <p class="voice-quick-label">将语音键设置为：</p>
+        <div class="voice-quick-setup" :aria-label="t('语音键快速设置', 'Voice key quick setup')">
+          <p class="voice-quick-label">{{ t("将语音键设置为：", "Set voice key to:") }}</p>
           <div class="voice-quick-grid">
             <button
               v-for="item in voiceQuickPresets"
@@ -738,13 +744,18 @@ onUnmounted(() => {
               type="button"
               class="voice-quick-btn"
               :class="{ pressed: voiceQuickPressedId === item.id }"
-              :aria-label="`将语音键设置为 ${item.segments.join(' 加 ')}`"
+              :aria-label="
+                t(
+                  `将语音键设置为 ${item.segments.join(' 加 ')}`,
+                  `Set voice key to ${item.segments.map(keyLabelDisplay).join(' plus ')}`
+                )
+              "
               @click="applyVoiceQuick(item, $event)"
             >
               <span class="voice-quick-chord">
                 <template v-for="(seg, segIdx) in item.segments" :key="seg">
                   <span v-if="segIdx > 0" class="chord-plus" aria-hidden="true">+</span>
-                  <kbd class="key-cap-chip">{{ seg }}</kbd>
+                  <kbd class="key-cap-chip">{{ keyLabelDisplay(seg) }}</kbd>
                 </template>
               </span>
             </button>
