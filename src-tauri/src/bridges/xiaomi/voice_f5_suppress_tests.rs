@@ -9,6 +9,9 @@ use crate::bridges::xiaomi::key_mapping::{
 };
 use std::time::Duration;
 
+/// 这些测试共用 key_mapping 里的全局状态，并行跑会互相干扰，逐个串行
+static SERIAL: parking_lot::Mutex<()> = parking_lot::Mutex::new(());
+
 /// Windows 默认 typematic 延迟约 400–1000ms
 pub const WINDOWS_TYPEMATIC_DELAY_MS: u64 = 400;
 
@@ -22,6 +25,7 @@ fn voice_f5_suppress_deadline_covers_typematic() {
 
 #[test]
 fn voice_f5_sticky_arm_stays_active_past_old_120ms_window() {
+    let _serial = SERIAL.lock();
     end_voice_period("test");
     disarm_voice_native_suppress();
     arm_voice_native_suppress();
@@ -42,6 +46,7 @@ fn notepad_f5_is_vk_0x74() {
 
 #[test]
 fn suppress_firmware_f5_while_voice_native_armed() {
+    let _serial = SERIAL.lock();
     end_voice_period("test");
     disarm_voice_native_suppress();
     set_input_session_active(false);
@@ -54,9 +59,10 @@ fn suppress_firmware_f5_while_voice_native_armed() {
         should_suppress_voice_f5(true, false, false),
         "sticky down suppress covers typematic repeats"
     );
+    // DOWN 被吞且没漏进系统 → UP 成对吞掉（漏过 DOWN 时才放行 UP 解卡，见 key_mapping）
     assert!(
-        !should_suppress_voice_f5(false, true, false),
-        "F5 KEYUP must always pass to unstick leaked DOWN"
+        should_suppress_voice_f5(false, true, false),
+        "KEYUP pairs with a swallowed DOWN"
     );
     // UP 已清 sticky；周期/armed 仍在则再 DOWN 仍吞
     assert!(should_suppress_voice_f5(true, false, false));
@@ -67,6 +73,7 @@ fn suppress_firmware_f5_while_voice_native_armed() {
 /// 会话在线不等于吞 F5（否则真键盘 F5 失效）；只在语音周期/armed 时吞。
 #[test]
 fn session_alone_does_not_swallow_physical_f5() {
+    let _serial = SERIAL.lock();
     end_voice_period("test");
     disarm_voice_native_suppress();
     set_input_session_active(true);
@@ -81,12 +88,13 @@ fn session_alone_does_not_swallow_physical_f5() {
 
 #[test]
 fn voice_period_swallows_f5_without_session() {
+    let _serial = SERIAL.lock();
     end_voice_period("test");
     disarm_voice_native_suppress();
     set_input_session_active(false);
     begin_voice_period();
     assert!(should_suppress_voice_f5(true, false, false));
-    assert!(!should_suppress_voice_f5(false, true, false));
+    assert!(should_suppress_voice_f5(false, true, false));
     assert!(should_suppress_voice_f5(true, false, false));
     end_voice_period("test");
     // sticky 保留到 disarm（与 end_voice_period 不清 sticky 对齐）
@@ -96,6 +104,7 @@ fn voice_period_swallows_f5_without_session() {
 
 #[test]
 fn no_session_no_arm_does_not_swallow_physical_f5() {
+    let _serial = SERIAL.lock();
     end_voice_period("test");
     disarm_voice_native_suppress();
     set_input_session_active(false);
@@ -130,6 +139,7 @@ fn should_suppress_voice_f5_must_not_block_wait() {
 
 #[test]
 fn orphan_f5_keyup_must_pass_to_unstick() {
+    let _serial = SERIAL.lock();
     end_voice_period("test");
     disarm_voice_native_suppress();
     set_input_session_active(true);

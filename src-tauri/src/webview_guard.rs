@@ -248,11 +248,23 @@ mod tests {
         let mut h = WebviewHealth::new();
         let start = t(0);
         h.on_pong();
-        let mut now = start + STALE_AFTER + Duration::from_secs(3);
+        // 连续 FAIL_THRESHOLD 次判死才 reload（同 stale_triggers_reload_after_threshold）
+        let mut now = start + STALE_AFTER;
+        for _ in 1..FAIL_THRESHOLD {
+            now += Duration::from_secs(1);
+            assert_eq!(h.check(now, true), HealthAction::None);
+        }
+        now += Duration::from_secs(1);
         assert_eq!(h.check(now, true), HealthAction::Reload);
         now += Duration::from_secs(10);
         assert_eq!(h.check(now, true), HealthAction::None);
-        now += RELOAD_COOLDOWN + Duration::from_secs(1);
+        // 上面冷却期内那次已计入判死次数；冷却过后凑满 FAIL_THRESHOLD 次才再次 reload
+        now += RELOAD_COOLDOWN;
+        for _ in 2..FAIL_THRESHOLD {
+            now += Duration::from_secs(1);
+            assert_eq!(h.check(now, true), HealthAction::None);
+        }
+        now += Duration::from_secs(1);
         assert_eq!(h.check(now, true), HealthAction::Reload);
     }
 
@@ -262,7 +274,11 @@ mod tests {
         h.on_pong();
         h.note_reload_failed();
         h.note_reload_failed();
-        let now = t(STALE_AFTER.as_secs() + FAIL_THRESHOLD as u64 + 1);
+        // 连续 FAIL_THRESHOLD 次判死后才干预；reload 已失败两次 → 升级为 recreate
+        for i in 1..FAIL_THRESHOLD {
+            assert_eq!(h.check(t(STALE_AFTER.as_secs() + i as u64), true), HealthAction::None);
+        }
+        let now = t(STALE_AFTER.as_secs() + FAIL_THRESHOLD as u64);
         assert_eq!(h.check(now, true), HealthAction::Recreate);
     }
 
