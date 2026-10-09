@@ -10,6 +10,12 @@ This is the **Linux port** of [mwlt/Voice_VibeCoding](https://github.com/mwlt/Vo
 
 > Tested on Ubuntu 24.04 (GNOME, X11 session) on x86-64.
 
+![Voice VibeCoding on Linux: remote status, voice output settings and status log](docs/images/linux-en-main.png)
+
+![Key mapping: every remote button maps to a keyboard shortcut](docs/images/linux-en-keymap.png)
+
+The UI is in English by default; click **中文** in the top bar to switch to Chinese.
+
 ## How it works on Linux
 
 | Feature | Windows (upstream) | Linux (this port) |
